@@ -53,14 +53,15 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
 
         try {
             // Image bed enabled and the resource matches the selected categories:
-            // upload it there instead of the workspace assets directory.
+            // upload it there; on failure fall through to the workspace assets.
             if (shouldUploadToImageBed(link, plugin)) {
                 const { fileContent, status } = await downloadImage(url);
-                if (status >= 400) {
-                    throw new Error(`resource fetch returned HTTP ${status}`);
+                if (status < 400) {
+                    const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(link), fileContent);
+                    if (remoteUrl) {
+                        return `![${anchor}](${remoteUrl})`;
+                    }
                 }
-                const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(link), fileContent);
-                return `![${anchor}](${remoteUrl})`;
             }
 
             const { fileContent, fileExtension } = await downloadImage(url);

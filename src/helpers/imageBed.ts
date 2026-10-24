@@ -1,9 +1,16 @@
+import { kernelForward } from 'src/api/http';
 import ReadItLaterPlugin from 'src/main';
 
 /**
  * Uploads clipped resources to a self-hosted image bed (Sanyue-ImgHub /
  * CloudFlare-ImgBed compatible: POST /upload, multipart `file` field,
  * optional Bearer token, response `[{src: "/file/<name>"}]`).
+ *
+ * Uploads go direct first; when the browser blocks the request (remote-mode
+ * CORS / mixed content) or the bed answers with an HTTP error, the same
+ * hand-built multipart body is re-sent through the kernel forward proxy —
+ * the same body works for both transports because it is a raw byte array.
+ * Failures resolve to `null` so the caller can fall back to local assets.
  */
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'tiff']);
@@ -87,45 +94,88 @@ export function imageBedFileName(url: string): string {
     return `resource-${Date.now().toString(36)}${extension ? `.${extension}` : ''}`;
 }
 
+/**
+ * Uploads one resource to the image bed. Resolves to the reference URL for the
+ * note, or `null` when the upload failed (the caller then falls back to the
+ * workspace assets directory).
+ */
 export async function uploadToImageBed(
     plugin: ReadItLaterPlugin,
     fileName: string,
     content: ArrayBuffer,
-): Promise<string> {
+): Promise<string | null> {
     const settings = plugin.settings;
     const uploadBase = String(settings.imageBedUrl ?? '').replace(/\/+$/, '');
     if (!uploadBase) {
-        throw new Error('Image bed upload URL is not configured');
+        console.warn('ReadItLater: image bed upload URL is not configured');
+        return null;
     }
 
-    const file = new File([content], fileName, { type: 'application/octet-stream' });
-    const formData = new FormData();
-    formData.append('file', file);
+    try {
+        // Hand-build the multipart body as raw bytes so the identical payload
+        // can be sent directly and, when the browser blocks that (remote-mode
+        // CORS / mixed content), be re-sent base64-encoded via the kernel proxy.
+        const boundary = `----siyuanReadItLater${Date.now()}${Math.floor(Math.random() * 100000)}`;
+        const safeFilename = fileName.replace(/[^\x20-\x7e]/g, '_');
+        const encoder = new TextEncoder();
+        const head = encoder.encode(
+            `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="file"; filename="${safeFilename}"\r\n` +
+                'Content-Type: application/octet-stream\r\n\r\n',
+        );
+        const tail = encoder.encode(`\r\n--${boundary}--\r\n`);
+        const fileBytes = new Uint8Array(content);
+        const body = new Uint8Array(head.length + fileBytes.length + tail.length);
+        body.set(head, 0);
+        body.set(fileBytes, head.length);
+        body.set(tail, head.length + fileBytes.length);
 
-    const headers: Record<string, string> = {};
-    const token = String(settings.imageBedToken ?? '').trim();
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+        const contentType = `multipart/form-data; boundary=${boundary}`;
+        const headers: Record<string, string> = {};
+        const token = String(settings.imageBedToken ?? '')
+            .trim()
+            .replace(/^bearer /i, '');
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        let response: Response;
+        try {
+            response = await fetch(`${uploadBase}/upload`, {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': contentType },
+                body,
+            });
+            if (!response.ok) {
+                console.warn(
+                    `ReadItLater: image bed direct upload returned HTTP ${response.status}, trying kernel proxy`,
+                );
+                response = await kernelForward(`${uploadBase}/upload`, 'POST', body, contentType, headers);
+            }
+        } catch (error) {
+            console.warn('ReadItLater: image bed direct upload blocked, falling back to kernel proxy', error);
+            response = await kernelForward(`${uploadBase}/upload`, 'POST', body, contentType, headers);
+        }
+
+        if (!response.ok) {
+            console.warn(`ReadItLater: image bed upload failed: HTTP ${response.status} (direct and kernel proxy)`);
+            return null;
+        }
+
+        const result = await response.json();
+        const src = Array.isArray(result) ? result[0]?.src : result?.data?.[0]?.src;
+        if (!src) {
+            console.warn(`ReadItLater: image bed response has no src: ${JSON.stringify(result).slice(0, 200)}`);
+            return null;
+        }
+
+        // Some beds answer with absolute URLs — use them as-is. Otherwise links
+        // written into notes use the external link URL when configured (upload
+        // and public origins often differ), falling back to the upload URL.
+        const linkBase = (String(settings.imageBedLinkUrl ?? '').trim() || uploadBase).replace(/\/+$/, '');
+        return src.startsWith('http') ? src : `${linkBase}${src.startsWith('/') ? src : `/${src}`}`;
+    } catch (error) {
+        console.warn('ReadItLater: image bed upload failed, falling back to local assets', error);
+        return null;
     }
-
-    const response = await fetch(`${uploadBase}/upload`, {
-        method: 'POST',
-        headers,
-        body: formData,
-    });
-    if (!response.ok) {
-        throw new Error(`Image bed upload failed: HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    const src = Array.isArray(result) ? result[0]?.src : result?.data?.[0]?.src;
-    if (!src) {
-        throw new Error('Image bed upload returned no file path');
-    }
-
-    // Links written into notes use the external link URL when configured
-    // (upload and public origins often differ, e.g. http internal vs https
-    // public), otherwise they fall back to the upload URL.
-    const linkBase = (String(settings.imageBedLinkUrl ?? '').trim() || uploadBase).replace(/\/+$/, '');
-    return `${linkBase}${src.startsWith('/') ? src : `/${src}`}`;
 }

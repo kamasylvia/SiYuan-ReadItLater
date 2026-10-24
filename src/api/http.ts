@@ -120,3 +120,69 @@ export async function request(options: RequestOptions): Promise<string> {
 export function getRequestStatus(response: RequestUrlResponseLike): number {
     return response.status;
 }
+
+/**
+ * Forwards an arbitrary request through the kernel proxy and reconstitutes a
+ * synthetic `Response` (binary body, status), keeping the same downstream
+ * interface as a direct `fetch`. Used as the fallback when the browser blocks
+ * a direct request (remote-mode CORS / mixed content). Binary payloads are
+ * base64-forwarded; when the kernel cannot resolve the target hostname (docker
+ * deployments vs Tailscale names) the port is kept and the host is retried via
+ * `host.docker.internal`.
+ */
+export async function kernelForward(
+    url: string,
+    method: string,
+    payload?: string | Uint8Array,
+    contentType?: string,
+    proxyHeaders?: Record<string, string>,
+): Promise<Response> {
+    try {
+        return await kernelForwardOnce(url, method, payload, contentType, proxyHeaders);
+    } catch (error) {
+        const message = String((error as Error)?.message ?? error);
+        if (!message.includes('no such host')) {
+            throw error;
+        }
+        const rewritten = new URL(url);
+        rewritten.hostname = 'host.docker.internal';
+        return await kernelForwardOnce(rewritten.toString(), method, payload, contentType, proxyHeaders);
+    }
+}
+
+async function kernelForwardOnce(
+    url: string,
+    method: string,
+    payload: string | Uint8Array | undefined,
+    contentType: string | undefined,
+    proxyHeaders: Record<string, string> | undefined,
+): Promise<Response> {
+    const body: Record<string, unknown> = {
+        url,
+        method: method.toUpperCase(),
+        timeout: DEFAULT_TIMEOUT_MS,
+        responseEncoding: 'base64',
+        headers: Object.entries(proxyHeaders ?? {}).map(([key, value]) => ({ [key]: value })),
+    };
+    if (payload !== undefined) {
+        if (payload instanceof Uint8Array) {
+            let binary = '';
+            for (let i = 0; i < payload.length; i++) {
+                binary += String.fromCharCode(payload[i]);
+            }
+            body.payload = btoa(binary);
+            body.payloadEncoding = 'base64';
+        } else {
+            body.payload = payload;
+        }
+    }
+    if (contentType !== undefined) {
+        body.contentType = contentType;
+    }
+
+    const data = await postJSON<IForwardProxyData>('/api/network/forwardProxy', body);
+    const bytes =
+        data.bodyEncoding === 'text' ? new TextEncoder().encode(data.body) : new Uint8Array(base64Decode(data.body));
+    const responseHeaders = data.contentType ? { 'Content-Type': data.contentType } : {};
+    return new Response(bytes, { status: data.status, headers: responseHeaders });
+}
