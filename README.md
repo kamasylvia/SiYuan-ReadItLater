@@ -128,6 +128,18 @@ You can use template variables in `Inbox directory` and `Assets directory` setti
 
 Downloaded images are uploaded into the workspace assets directory (default `assets`). The kernel creates missing directories automatically, so nested template paths such as `assets/ReadItLater/{{ date }}` work as well.
 
+### Image bed
+
+Instead of the workspace assets directory, resources can be uploaded to a self-hosted image bed (Sanyue-ImgHub / [CloudFlare-ImgBed](https://github.com/MarSeventh/CloudFlare-ImgBed) compatible: `POST /upload`, optional Bearer token, `[{src: "/file/..."}]` response).
+
+Enable **Use image bed** in the settings, then fill in:
+
+- **Image bed URL** (required) — base URL, e.g. `https://imgbed.example.com`
+- **Image bed Access Token** (optional) — sent as `Authorization: Bearer <token>`
+- **Resources uploaded to the image bed** — multi-select: images, videos, files, custom (comma-separated extensions uploaded regardless of category). Defaults: images + videos.
+
+Resources whose extension matches a selected category (or one of the custom extensions) are uploaded to the image bed and referenced by its returned URL; everything else keeps the local-assets behavior. WeChat-style URLs without a path extension (`?wx_fmt=png`) are recognized too.
+
 ## Content Types
 
 Structure of note content is determined by URL. Currently the plugin supports saving content of websites and embedding content from multiple services. Each content type has a title and note template with replaceable variables, which can be edited in plugin settings.

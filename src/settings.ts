@@ -81,6 +81,14 @@ export interface ReadItLaterSettings {
     pinterestNoteTitle: string;
     pinterestNote: string;
     downloadPinterestImage: boolean;
+    useImageBed: boolean;
+    imageBedUrl: string;
+    imageBedToken: string;
+    imageBedUploadImages: boolean;
+    imageBedUploadVideos: boolean;
+    imageBedUploadFiles: boolean;
+    imageBedUploadCustom: boolean;
+    imageBedCustomExtensions: string;
 }
 
 export const DEFAULT_SETTINGS: ReadItLaterSettings = {
@@ -167,4 +175,12 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
     pinterestNote:
         '[[ReadItLater]] [[Pinterest]]\n\n# [{{ authorName }}]({{ pinURL }})\n\n![]({{ image }})\n{{ description }}',
     downloadPinterestImage: true,
+    useImageBed: false,
+    imageBedUrl: '',
+    imageBedToken: '',
+    imageBedUploadImages: true,
+    imageBedUploadVideos: true,
+    imageBedUploadFiles: false,
+    imageBedUploadCustom: false,
+    imageBedCustomExtensions: '',
 };

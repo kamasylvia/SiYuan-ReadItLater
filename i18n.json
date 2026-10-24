@@ -136,5 +136,19 @@
         "chapterTemplate": "章节模板"
     },
     "settingsFsLimitPathDesc": "Leave empty to use the default limit. Default: {default}.",
-    "settingsFsLimitFileNameDesc": "Leave empty to use the default limit. Default: {default}."
+    "settingsFsLimitFileNameDesc": "Leave empty to use the default limit. Default: {default}.",
+    "settingsImageBedToggle": "Use image bed",
+    "settingsImageBedToggleDesc": "Upload clipped resources to your image bed instead of the workspace assets directory.",
+    "settingsImageBedUrl": "Image bed URL",
+    "settingsImageBedUrlDesc": "Base URL of your image bed, e.g. https://imgbed.example.com. Required when enabled.",
+    "settingsImageBedToken": "Image bed Access Token",
+    "settingsImageBedTokenDesc": "Optional Bearer token if your image bed requires authentication.",
+    "settingsImageBedResources": "Resources uploaded to the image bed",
+    "settingsImageBedResourcesDesc": "Only resources of the selected categories are uploaded. Extensions listed under Custom are always uploaded.",
+    "settingsImageBedResImages": "Images",
+    "settingsImageBedResVideos": "Videos",
+    "settingsImageBedResFiles": "Files",
+    "settingsImageBedResCustom": "Custom",
+    "settingsImageBedCustomExt": "Custom file extensions",
+    "settingsImageBedCustomExtDesc": "Comma-separated extensions uploaded regardless of category, e.g. apk, zip, psd."
 }

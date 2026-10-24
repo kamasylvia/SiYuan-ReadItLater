@@ -64,5 +64,19 @@
     "embedHeight": "嵌入播放器高度",
     "embedPrivacy": "以增强隐私模式嵌入",
     "embedPrivacyDesc": "启用后,内容将以增强隐私模式嵌入,防止其浏览记录影响你在 YouTube 上的浏览体验。",
-    "chapterTemplate": "章节模板"
+    "chapterTemplate": "章节模板",
+    "settingsImageBedToggle": "使用图床",
+    "settingsImageBedToggleDesc": "启用后,剪藏的资源将上传到你的图床,而不是工作空间资源目录。",
+    "settingsImageBedUrl": "图床 URL",
+    "settingsImageBedUrlDesc": "图床基础地址,例如 https://imgbed.example.com。启用后必填。",
+    "settingsImageBedToken": "图床 Access Token",
+    "settingsImageBedTokenDesc": "可选。图床开启鉴权时填写。",
+    "settingsImageBedResources": "上传至图床的资源",
+    "settingsImageBedResourcesDesc": "仅所选类别的资源会上传;自定义后缀名始终上传。",
+    "settingsImageBedResImages": "图片",
+    "settingsImageBedResVideos": "视频",
+    "settingsImageBedResFiles": "文件",
+    "settingsImageBedResCustom": "自定义",
+    "settingsImageBedCustomExt": "自定义文件后缀名",
+    "settingsImageBedCustomExtDesc": "逗号分隔的后缀名,无论类别一律上传,例如 apk, zip, psd。"
 }

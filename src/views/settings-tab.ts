@@ -121,6 +121,10 @@ export class ReadItLaterSettingsTab {
             placeholder: DEFAULT_SETTINGS.assetsDir as string,
         });
 
+        const imageBedContainer = document.createElement('div');
+        container.appendChild(imageBedContainer);
+        this.renderImageBedSettings(imageBedContainer);
+
         this.addToggleSetting(
             container,
             this.t('settingsOpenNewNote'),
@@ -431,6 +435,88 @@ export class ReadItLaterSettingsTab {
     }
 
     // ---------------------------------------------------------------- builders
+
+    /**
+     * Image bed settings group. Re-renders itself on the master toggle so the
+     * URL / token / resource-category rows only appear when the image bed is on.
+     */
+    private renderImageBedSettings(host: HTMLElement): void {
+        host.innerHTML = '';
+
+        this.addToggleSetting(
+            host,
+            this.t('settingsImageBedToggle'),
+            this.t('settingsImageBedToggleDesc'),
+            'useImageBed',
+            () => {
+                this.renderImageBedSettings(host);
+            },
+        );
+
+        if (this.plugin.settings.useImageBed !== true) {
+            return;
+        }
+
+        this.addTextSetting(host, this.t('settingsImageBedUrl'), this.t('settingsImageBedUrlDesc'), 'imageBedUrl', {
+            placeholder: 'https://imgbed.example.com',
+        });
+        this.addTextSetting(
+            host,
+            this.t('settingsImageBedToken'),
+            this.t('settingsImageBedTokenDesc'),
+            'imageBedToken',
+            { placeholder: '' },
+        );
+
+        const resourcesRow = this.createSettingRow(
+            this.t('settingsImageBedResources'),
+            this.t('settingsImageBedResourcesDesc'),
+        );
+        const checkboxGroup = document.createElement('div');
+        checkboxGroup.className = 'fn__flex';
+        checkboxGroup.style.gap = '12px';
+        checkboxGroup.style.flexWrap = 'wrap';
+
+        const categories: Array<{ key: string; labelKey: string; onChange?: (checked: boolean) => void }> = [
+            { key: 'imageBedUploadImages', labelKey: 'settingsImageBedResImages' },
+            { key: 'imageBedUploadVideos', labelKey: 'settingsImageBedResVideos' },
+            { key: 'imageBedUploadFiles', labelKey: 'settingsImageBedResFiles' },
+            {
+                key: 'imageBedUploadCustom',
+                labelKey: 'settingsImageBedResCustom',
+                onChange: () => this.renderImageBedSettings(host),
+            },
+        ];
+        for (const category of categories) {
+            const item = document.createElement('label');
+            item.className = 'fn__flex fn__flex-center';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'b3-switch';
+            checkbox.checked = this.plugin.settings[category.key] === true;
+            checkbox.addEventListener('change', () => {
+                void this.plugin.saveSetting(category.key, checkbox.checked);
+                category.onChange?.(checkbox.checked);
+            });
+            const label = document.createElement('span');
+            label.textContent = this.t(category.labelKey);
+            label.style.marginLeft = '4px';
+            item.append(checkbox, label);
+            checkboxGroup.appendChild(item);
+        }
+        resourcesRow.appendChild(checkboxGroup);
+        host.appendChild(resourcesRow);
+
+        if (this.plugin.settings.imageBedUploadCustom === true) {
+            this.addTextSetting(
+                host,
+                this.t('settingsImageBedCustomExt'),
+                this.t('settingsImageBedCustomExtDesc'),
+                'imageBedCustomExtensions',
+                { placeholder: 'apk, zip, psd' },
+            );
+        }
+    }
 
     private createSectionContainer(): HTMLElement {
         const container = document.createElement('div');

@@ -1,5 +1,6 @@
 import { requestUrl } from 'src/api/http';
 import { HTTPS_PROTOCOL, HTTP_PROTOCOL } from 'src/constants/urlProtocols';
+import { imageBedFileName, shouldUploadToImageBed, uploadToImageBed } from 'src/helpers/imageBed';
 import ReadItLaterPlugin from 'src/main';
 import { getFileExtensionFromMimeType, isValidUrl } from './fileutils';
 
@@ -51,6 +52,17 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
         const url = new URL(link);
 
         try {
+            // Image bed enabled and the resource matches the selected categories:
+            // upload it there instead of the workspace assets directory.
+            if (shouldUploadToImageBed(link, plugin)) {
+                const { fileContent, status } = await downloadImage(url);
+                if (status >= 400) {
+                    throw new Error(`resource fetch returned HTTP ${status}`);
+                }
+                const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(link), fileContent);
+                return `![${anchor}](${remoteUrl})`;
+            }
+
             const { fileContent, fileExtension } = await downloadImage(url);
 
             if (fileExtension === '') {
@@ -101,7 +113,7 @@ async function uploadAsset(fileName: string, fileContent: ArrayBuffer, assetsDir
     return uploadedPath;
 }
 
-async function downloadImage(url: URL): Promise<{ fileContent: ArrayBuffer; fileExtension: string }> {
+async function downloadImage(url: URL): Promise<{ fileContent: ArrayBuffer; fileExtension: string; status: number }> {
     const res = await requestUrl({
         url: url.href,
         method: 'get',
@@ -110,5 +122,6 @@ async function downloadImage(url: URL): Promise<{ fileContent: ArrayBuffer; file
     return {
         fileContent: res.arrayBuffer,
         fileExtension: getFileExtensionFromMimeType(res.headers['content-type'] || '') ?? '',
+        status: res.status,
     };
 }
