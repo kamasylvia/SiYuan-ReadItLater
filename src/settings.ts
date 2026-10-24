@@ -83,6 +83,7 @@ export interface ReadItLaterSettings {
     downloadPinterestImage: boolean;
     useImageBed: boolean;
     imageBedUrl: string;
+    imageBedLinkUrl: string;
     imageBedToken: string;
     imageBedUploadImages: boolean;
     imageBedUploadVideos: boolean;
@@ -177,6 +178,7 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
     downloadPinterestImage: true,
     useImageBed: false,
     imageBedUrl: '',
+    imageBedLinkUrl: '',
     imageBedToken: '',
     imageBedUploadImages: true,
     imageBedUploadVideos: true,

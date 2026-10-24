@@ -93,9 +93,9 @@ export async function uploadToImageBed(
     content: ArrayBuffer,
 ): Promise<string> {
     const settings = plugin.settings;
-    const baseUrl = String(settings.imageBedUrl ?? '').replace(/\/+$/, '');
-    if (!baseUrl) {
-        throw new Error('Image bed URL is not configured');
+    const uploadBase = String(settings.imageBedUrl ?? '').replace(/\/+$/, '');
+    if (!uploadBase) {
+        throw new Error('Image bed upload URL is not configured');
     }
 
     const file = new File([content], fileName, { type: 'application/octet-stream' });
@@ -108,7 +108,7 @@ export async function uploadToImageBed(
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${baseUrl}/upload`, {
+    const response = await fetch(`${uploadBase}/upload`, {
         method: 'POST',
         headers,
         body: formData,
@@ -123,5 +123,9 @@ export async function uploadToImageBed(
         throw new Error('Image bed upload returned no file path');
     }
 
-    return `${baseUrl}${src.startsWith('/') ? src : `/${src}`}`;
+    // Links written into notes use the external link URL when configured
+    // (upload and public origins often differ, e.g. http internal vs https
+    // public), otherwise they fall back to the upload URL.
+    const linkBase = (String(settings.imageBedLinkUrl ?? '').trim() || uploadBase).replace(/\/+$/, '');
+    return `${linkBase}${src.startsWith('/') ? src : `/${src}`}`;
 }

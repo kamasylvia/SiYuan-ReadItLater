@@ -462,6 +462,13 @@ export class ReadItLaterSettingsTab {
         });
         this.addTextSetting(
             host,
+            this.t('settingsImageBedLinkUrl'),
+            this.t('settingsImageBedLinkUrlDesc'),
+            'imageBedLinkUrl',
+            { placeholder: 'https://imgbed.example.com' },
+        );
+        this.addTextSetting(
+            host,
             this.t('settingsImageBedToken'),
             this.t('settingsImageBedTokenDesc'),
             'imageBedToken',

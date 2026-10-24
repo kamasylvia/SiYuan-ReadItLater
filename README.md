@@ -134,7 +134,8 @@ Instead of the workspace assets directory, resources can be uploaded to a self-h
 
 Enable **Use image bed** in the settings, then fill in:
 
-- **Image bed URL** (required) — base URL, e.g. `https://imgbed.example.com`
+- **Image bed upload URL** (required) — base URL the plugin uploads to, e.g. `https://imgbed.example.com`
+- **Image bed link URL** (optional) — prefix used for the `/file/...` links written into notes, for setups where the upload origin and the public origin differ (e.g. internal HTTP upload vs public HTTPS). Empty falls back to the upload URL.
 - **Image bed Access Token** (optional) — sent as `Authorization: Bearer <token>`
 - **Resources uploaded to the image bed** — multi-select: images, videos, files, custom (comma-separated extensions uploaded regardless of category). Defaults: images + videos.
 
