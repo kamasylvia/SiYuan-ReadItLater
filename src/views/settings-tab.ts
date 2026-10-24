@@ -476,12 +476,14 @@ export class ReadItLaterSettingsTab {
         );
 
         // Right-aligned with the control column of the rows above (URL / token
-        // inputs); b3-label rows inset their content by 24px on the right.
+        // inputs); b3-label rows inset their content by 24px on the right. Keep a
+        // positive top margin — a negative one pulls the button over the token
+        // row's bottom border line.
         const checkRow = document.createElement('div');
         checkRow.className = 'fn__flex';
         checkRow.style.justifyContent = 'flex-end';
         checkRow.style.paddingRight = '24px';
-        checkRow.style.marginTop = '-14px';
+        checkRow.style.marginTop = '4px';
         const checkButton = document.createElement('button');
         checkButton.className = 'b3-button b3-button--outline';
         checkButton.textContent = this.t('settingsImageBedCheck');
