@@ -87,5 +87,8 @@
     "imgbedCheckNoUrl": "Please fill in the image bed upload URL first.",
     "imgbedCheckFail": "Image bed connection failed.",
     "imgbedCheckOk": "Image bed connection is working. The probe file has been cleaned up.",
-    "imgbedCheckCleanupFailed": "Image bed connection is working. Probe cleanup failed — please delete {name} from the image bed."
+    "imgbedCheckCleanupFailed": "Image bed connection is working. Probe cleanup failed — please delete {name} from the image bed.",
+    "settingsImageBedCheckName": "Image bed connectivity check",
+    "settingsImageBedCheckDesc": "Upload a probe file to verify the image bed is reachable.",
+    "imgbedCheckButton": "Test"
 }

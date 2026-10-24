@@ -475,22 +475,21 @@ export class ReadItLaterSettingsTab {
             { placeholder: '' },
         );
 
-        // A full b3-label row: same padding as the neighboring rows (consistent
-        // spacing above/below) and the same bottom border line, right-aligned to
-        // the control column (24px inset).
-        const checkRow = document.createElement('div');
-        checkRow.className = 'b3-label fn__flex';
-        checkRow.style.justifyContent = 'flex-end';
-        checkRow.style.paddingRight = '24px';
+        // Connectivity check row: description on the left, wide test button on the
+        // right — same row anatomy as the memos plugin's check entry.
+        const checkRow = this.createSettingRow(
+            this.t('settingsImageBedCheckName'),
+            this.t('settingsImageBedCheckDesc'),
+        );
         const checkButton = document.createElement('button');
-        checkButton.className = 'b3-button b3-button--outline';
-        checkButton.textContent = this.t('settingsImageBedCheck');
+        checkButton.className = 'b3-button b3-button--outline fn__size200';
+        checkButton.textContent = this.t('imgbedCheckButton');
         checkButton.addEventListener('click', () => {
             checkButton.disabled = true;
             checkButton.textContent = this.t('imgbedCheckRunning');
             void this.plugin.checkImageBedConnection().finally(() => {
                 checkButton.disabled = false;
-                checkButton.textContent = this.t('settingsImageBedCheck');
+                checkButton.textContent = this.t('imgbedCheckButton');
             });
         });
         checkRow.appendChild(checkButton);

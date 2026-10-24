@@ -87,5 +87,8 @@
     "imgbedCheckNoUrl": "请先填写图床上传 URL。",
     "imgbedCheckFail": "图床连接失败。",
     "imgbedCheckOk": "图床连接正常,探针文件已清理。",
-    "imgbedCheckCleanupFailed": "图床连接正常,但探针清理失败——请到图床面板删除 {name}。"
+    "imgbedCheckCleanupFailed": "图床连接正常,但探针清理失败——请到图床面板删除 {name}。",
+    "settingsImageBedCheckName": "图床连通性检验",
+    "settingsImageBedCheckDesc": "上传探针文件验证图床是否可用。",
+    "imgbedCheckButton": "检验"
 }
