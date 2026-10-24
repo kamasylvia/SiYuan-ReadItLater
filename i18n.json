@@ -152,5 +152,12 @@
     "settingsImageBedCustomExt": "Custom file extensions",
     "settingsImageBedCustomExtDesc": "Comma-separated extensions uploaded regardless of category, e.g. apk, zip, psd.",
     "settingsImageBedLinkUrl": "Image bed link URL",
-    "settingsImageBedLinkUrlDesc": "Optional. Prefix for the links written into notes when upload and public origins differ (e.g. http internal upload vs https public). Empty falls back to the upload URL."
+    "settingsImageBedLinkUrlDesc": "Optional. Prefix for the links written into notes when upload and public origins differ (e.g. http internal upload vs https public). Empty falls back to the upload URL.",
+    "settingsImageBedCheck": "Test image bed connection",
+    "imgbedCheckRunning": "Testing...",
+    "imgbedCheckNotEnabled": "Please enable the image bed first.",
+    "imgbedCheckNoUrl": "Please fill in the image bed upload URL first.",
+    "imgbedCheckFail": "Image bed connection failed.",
+    "imgbedCheckOk": "Image bed connection is working. The probe file has been cleaned up.",
+    "imgbedCheckCleanupFailed": "Image bed connection is working. Probe cleanup failed — please delete {name} from the image bed."
 }

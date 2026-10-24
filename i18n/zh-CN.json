@@ -80,5 +80,12 @@
     "settingsImageBedCustomExt": "自定义文件后缀名",
     "settingsImageBedCustomExtDesc": "逗号分隔的后缀名,无论类别一律上传,例如 apk, zip, psd。",
     "settingsImageBedLinkUrl": "图床外链 URL",
-    "settingsImageBedLinkUrlDesc": "可选。笔记中外链使用的前缀,适用于上传地址与公开地址不一致的场景(如内网 http 上传、公网 https 访问)。留空则使用上传 URL。"
+    "settingsImageBedLinkUrlDesc": "可选。笔记中外链使用的前缀,适用于上传地址与公开地址不一致的场景(如内网 http 上传、公网 https 访问)。留空则使用上传 URL。",
+    "settingsImageBedCheck": "检测图床连接",
+    "imgbedCheckRunning": "检测中...",
+    "imgbedCheckNotEnabled": "请先开启图床功能。",
+    "imgbedCheckNoUrl": "请先填写图床上传 URL。",
+    "imgbedCheckFail": "图床连接失败。",
+    "imgbedCheckOk": "图床连接正常,探针文件已清理。",
+    "imgbedCheckCleanupFailed": "图床连接正常,但探针清理失败——请到图床面板删除 {name}。"
 }

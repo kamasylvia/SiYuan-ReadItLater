@@ -95,6 +95,21 @@ export function imageBedFileName(url: string): string {
 }
 
 /**
+ * Diagnostic detail of the most recent image bed failure (empty when the last
+ * upload succeeded). Surfaced by the settings connectivity check.
+ */
+let lastImageBedError = '';
+
+export function getImageBedLastError(): string {
+    return lastImageBedError;
+}
+
+function recordImageBedError(message: string, detail?: unknown): void {
+    lastImageBedError = message;
+    console.warn(`ReadItLater: ${message}`, detail ?? '');
+}
+
+/**
  * Uploads one resource to the image bed. Resolves to the reference URL for the
  * note, or `null` when the upload failed (the caller then falls back to the
  * workspace assets directory).
@@ -107,7 +122,7 @@ export async function uploadToImageBed(
     const settings = plugin.settings;
     const uploadBase = String(settings.imageBedUrl ?? '').replace(/\/+$/, '');
     if (!uploadBase) {
-        console.warn('ReadItLater: image bed upload URL is not configured');
+        recordImageBedError('Image bed upload URL is not configured');
         return null;
     }
 
@@ -158,14 +173,14 @@ export async function uploadToImageBed(
         }
 
         if (!response.ok) {
-            console.warn(`ReadItLater: image bed upload failed: HTTP ${response.status} (direct and kernel proxy)`);
+            recordImageBedError(`Image bed upload failed: HTTP ${response.status} (direct and kernel proxy)`);
             return null;
         }
 
         const result = await response.json();
         const src = Array.isArray(result) ? result[0]?.src : result?.data?.[0]?.src;
         if (!src) {
-            console.warn(`ReadItLater: image bed response has no src: ${JSON.stringify(result).slice(0, 200)}`);
+            recordImageBedError(`Image bed response has no src: ${JSON.stringify(result).slice(0, 200)}`);
             return null;
         }
 
@@ -173,9 +188,93 @@ export async function uploadToImageBed(
         // written into notes use the external link URL when configured (upload
         // and public origins often differ), falling back to the upload URL.
         const linkBase = (String(settings.imageBedLinkUrl ?? '').trim() || uploadBase).replace(/\/+$/, '');
+        lastImageBedError = '';
         return src.startsWith('http') ? src : `${linkBase}${src.startsWith('/') ? src : `/${src}`}`;
     } catch (error) {
-        console.warn('ReadItLater: image bed upload failed, falling back to local assets', error);
+        recordImageBedError('Image bed upload threw an exception', error);
         return null;
+    }
+}
+
+/** 1x1 transparent PNG used as the connectivity probe. */
+const PROBE_PNG_BASE64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+export interface IImageBedCheckResult {
+    ok: boolean;
+    /** Localized message ready for display. */
+    message: string;
+    /** Present when connectivity worked but the probe cleanup failed. */
+    leftoverProbeName?: string;
+}
+
+/**
+ * Connectivity check for the settings dialog: uploads a 1x1 PNG probe through
+ * the regular upload channel, then deletes it via the image bed management API.
+ * Cleanup failure does not change the connectivity verdict.
+ */
+export async function checkImageBedConnectivity(
+    plugin: ReadItLaterPlugin,
+    t: (key: string) => string,
+): Promise<IImageBedCheckResult> {
+    const fail = (message: string): IImageBedCheckResult => ({ ok: false, message });
+
+    if (plugin.settings.useImageBed !== true) {
+        return fail(t('imgbedCheckNotEnabled'));
+    }
+    if (!String(plugin.settings.imageBedUrl ?? '').trim()) {
+        return fail(t('imgbedCheckNoUrl'));
+    }
+
+    const probeName = `imgbed-probe-${Date.now()}.png`;
+    const probe = Uint8Array.from(atob(PROBE_PNG_BASE64), (c) => c.charCodeAt(0));
+    const link = await uploadToImageBed(plugin, probeName, probe.buffer);
+    if (!link) {
+        const detail = getImageBedLastError();
+        return fail(`${t('imgbedCheckFail')}${detail ? ` (${detail})` : ''}`);
+    }
+
+    // The bed renames uploads to "<serverTimestamp>_<name>" — the delete target
+    // must be the stored name (basename of the returned link), not the sent one.
+    const storedName = decodeURIComponent(link.split('/').pop() || probeName);
+    const cleaned = await deleteFromImageBed(plugin, storedName);
+    if (!cleaned) {
+        return {
+            ok: true,
+            message: `${t('imgbedCheckOk')} ${t('imgbedCheckCleanupFailed').replace('{name}', probeName)}`,
+            leftoverProbeName: probeName,
+        };
+    }
+    return { ok: true, message: t('imgbedCheckOk') };
+}
+
+/**
+ * Deletes a file from the image bed via the management API, using the same
+ * direct-then-kernel-proxy fallback as uploads.
+ */
+async function deleteFromImageBed(plugin: ReadItLaterPlugin, fileName: string): Promise<boolean> {
+    const uploadBase = String(plugin.settings.imageBedUrl ?? '').replace(/\/+$/, '');
+    if (!uploadBase) {
+        return false;
+    }
+
+    const headers: Record<string, string> = {};
+    const token = String(plugin.settings.imageBedToken ?? '')
+        .trim()
+        .replace(/^bearer /i, '');
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const url = `${uploadBase}/api/manage/delete/${fileName}?folder=false`;
+    try {
+        let response = await fetch(url, { method: 'GET', headers });
+        if (!response.ok) {
+            response = await kernelForward(url, 'GET', undefined, undefined, headers);
+        }
+        return response.ok;
+    } catch (error) {
+        console.warn('ReadItLater: image bed probe cleanup failed', error);
+        return false;
     }
 }

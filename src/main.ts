@@ -1,4 +1,5 @@
 import { Plugin } from 'siyuan';
+import { showMessage } from 'siyuan';
 import { DEFAULT_SETTINGS, ReadItLaterSettingValue, ReadItLaterSettings } from './settings';
 import { ReadItLaterSettingsTab } from './views/settings-tab';
 import YoutubeParser from './parsers/YoutubeParser';
@@ -23,6 +24,7 @@ import { NoteService } from './NoteService';
 import { ReadItLaterApi } from './ReadtItLaterApi';
 import { BlueskyParser } from './parsers/BlueskyParser';
 import { PinterestParser } from './parsers/PinterestParser';
+import { checkImageBedConnectivity } from './helpers/imageBed';
 import { Notice } from './ui/notice';
 
 export default class ReadItLaterPlugin extends Plugin {
@@ -170,6 +172,13 @@ export default class ReadItLaterPlugin extends Plugin {
             new Notice(String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.'));
             return '';
         }
+    }
+
+    /** Runs the image bed connectivity probe and shows the localized result. */
+    async checkImageBedConnection(): Promise<void> {
+        const t = (key: string): string => String(this.i18n[key] ?? key);
+        const result = await checkImageBedConnectivity(this, t);
+        showMessage(result.message, result.ok ? 5000 : 10000, result.ok ? 'info' : 'error');
     }
 
     private async createFromClipboard(): Promise<void> {

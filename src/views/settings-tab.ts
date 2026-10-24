@@ -475,6 +475,22 @@ export class ReadItLaterSettingsTab {
             { placeholder: '' },
         );
 
+        const checkRow = document.createElement('div');
+        checkRow.style.marginTop = '4px';
+        const checkButton = document.createElement('button');
+        checkButton.className = 'b3-button b3-button--outline';
+        checkButton.textContent = this.t('settingsImageBedCheck');
+        checkButton.addEventListener('click', () => {
+            checkButton.disabled = true;
+            checkButton.textContent = this.t('imgbedCheckRunning');
+            void this.plugin.checkImageBedConnection().finally(() => {
+                checkButton.disabled = false;
+                checkButton.textContent = this.t('settingsImageBedCheck');
+            });
+        });
+        checkRow.appendChild(checkButton);
+        host.appendChild(checkRow);
+
         const resourcesRow = this.createSettingRow(
             this.t('settingsImageBedResources'),
             this.t('settingsImageBedResourcesDesc'),
