@@ -267,14 +267,16 @@ async function deleteFromImageBed(plugin: ReadItLaterPlugin, fileName: string): 
     }
 
     const url = `${uploadBase}/api/manage/delete/${fileName}?folder=false`;
+    let response: Response;
     try {
-        let response = await fetch(url, { method: 'GET', headers });
+        response = await fetch(url, { method: 'GET', headers });
         if (!response.ok) {
+            console.warn(`ReadItLater: image bed direct delete returned HTTP ${response.status}, trying kernel proxy`);
             response = await kernelForward(url, 'GET', undefined, undefined, headers);
         }
-        return response.ok;
     } catch (error) {
-        console.warn('ReadItLater: image bed probe cleanup failed', error);
-        return false;
+        console.warn('ReadItLater: image bed direct delete blocked, falling back to kernel proxy', error);
+        response = await kernelForward(url, 'GET', undefined, undefined, headers);
     }
+    return response.ok;
 }
