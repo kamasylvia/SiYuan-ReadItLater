@@ -22,16 +22,18 @@
     ],
     "displayName": {
         "default": "ReadItLater",
-        "zh_CN": "稍后读"
+        "zh-CN": "稍后读"
     },
     "description": {
         "default": "Save online content to your SiYuan workspace, utilize embedded template engine and organize your reading list to your needs. Preserve the web with ReadItLater.",
-        "zh_CN": "将网页内容保存为思源笔记,利用内置模板引擎按需整理你的阅读列表。Preserve the web with ReadItLater."
+        "zh-CN": "将网页内容保存为思源笔记,利用内置模板引擎按需整理你的阅读列表。Preserve the web with ReadItLater."
     },
     "readme": {
-        "en_US": "README.md",
-        "zh_CN": "README.md"
+        "default": "README.md",
+        "zh-CN": "README.zh-CN.md"
     },
+    "icon": "icon.png",
+    "preview": "preview.png",
     "funding": {},
     "keywords": [
         "read-it-later",
