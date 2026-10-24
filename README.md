@@ -139,6 +139,8 @@ Enable **Use image bed** in the settings, then fill in:
 - **Image bed Access Token** (optional) — sent as `Authorization: Bearer <token>`
 - **Resources uploaded to the image bed** — multi-select: images, videos, files, custom (comma-separated extensions uploaded regardless of category). Defaults: images + videos.
 
+A **Test** button next to the settings rows uploads a probe file through the regular channel and cleans it up afterwards, verifying the image bed is reachable from the current frontend.
+
 Resources whose extension matches a selected category (or one of the custom extensions) are uploaded to the image bed and referenced by its returned URL; everything else keeps the local-assets behavior. WeChat-style URLs without a path extension (`?wx_fmt=png`) are recognized too.
 
 Uploaded links are deduplicated: the source URL → link mapping is persisted in the plugin storage (`imgbed-links.json`), so re-clipping the same article reuses the stored links instead of uploading duplicate files to the image bed. If you switch to a different image bed, clear that storage file (`data/storage/petal/siyuan-read-it-later/imgbed-links.json`) so old links stop being reused.
@@ -232,7 +234,7 @@ npm run build    # production build (index.js)
 npm run lint     # ESLint with auto-fix
 ```
 
-The build output is a single `index.js` bundled by esbuild in CommonJS format, loaded by SiYuan together with `plugin.json`, `index.css` and the `i18n/` language files (a root `i18n.json` is kept for older SiYuan releases). `npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md` produces the installable package. To try the plugin locally, unzip it into `<workspace>/data/plugins/siyuan-read-it-later/` and reload the SiYuan interface.
+The build output is a single `index.js` bundled by esbuild in CommonJS format, loaded by SiYuan together with `plugin.json`, `index.css` and the `i18n/` language files (a root `i18n.json` is kept for older SiYuan releases). `npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n icon.png preview.png README.md README.zh-CN.md` produces the installable package. To try the plugin locally, unzip it into `<workspace>/data/plugins/siyuan-read-it-later/` and reload the SiYuan interface.
 
 ## License
 
