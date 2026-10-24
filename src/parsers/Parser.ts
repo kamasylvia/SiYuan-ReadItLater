@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import type { App } from 'siyuan';
 import TemplateEngine from 'src/template/TemplateEngine';
 import ReadItLaterPlugin from 'src/main';
 import { isValidUrl } from 'src/helpers/fileutils';

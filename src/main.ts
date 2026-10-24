@@ -1,4 +1,4 @@
-import { Editor, Menu, MenuItem, Platform, Plugin, addIcon } from 'obsidian';
+import { Plugin } from 'siyuan';
 import { DEFAULT_SETTINGS, ReadItLaterSettingValue, ReadItLaterSettings } from './settings';
 import { ReadItLaterSettingsTab } from './views/settings-tab';
 import YoutubeParser from './parsers/YoutubeParser';
@@ -23,6 +23,7 @@ import { NoteService } from './NoteService';
 import { ReadItLaterApi } from './ReadtItLaterApi';
 import { BlueskyParser } from './parsers/BlueskyParser';
 import { PinterestParser } from './parsers/PinterestParser';
+import { Notice } from './ui/notice';
 
 export default class ReadItLaterPlugin extends Plugin {
     public api: ReadItLaterApi;
@@ -45,7 +46,7 @@ export default class ReadItLaterPlugin extends Plugin {
     async onload(): Promise<void> {
         await this.loadSettings();
 
-        this.fileSystemLimits = getFileSystemLimits(Platform, this.settings);
+        this.fileSystemLimits = getFileSystemLimits(this.settings);
         this.templateEngine = new TemplateEngine();
         this.parserCreator = new ParserCreator([
             new YoutubeParser(this.app, this, this.templateEngine),
@@ -67,67 +68,65 @@ export default class ReadItLaterPlugin extends Plugin {
         this.noteService = new NoteService(this.parserCreator, this, this.vaultRepository);
         this.api = new ReadItLaterApi(this.noteService);
 
-        addIcon('read-it-later', clipboardIcon);
+        this.addIcons(readItLaterIcon);
 
-        this.addRibbonIcon('read-it-later', 'ReadItLater: Create from clipboard', async () => {
-            await this.api.processContent(await this.getTextClipboardContent());
-        });
-
-        this.addCommand({
-            id: 'save-clipboard-to-notice',
-            name: 'Create from clipboard',
-            callback: async () => {
-                await this.api.processContent(await this.getTextClipboardContent());
+        this.addTopBar({
+            icon: 'iconReadItLater',
+            title: 'ReadItLater: Create from clipboard',
+            position: 'right',
+            callback: () => {
+                void this.createFromClipboard();
             },
         });
 
         this.addCommand({
-            id: 'create-from-clipboard-batch',
-            name: 'Create from batch in clipboard',
+            langKey: 'createNote',
+            hotkey: '',
+            callback: async () => {
+                await this.createFromClipboard();
+            },
+        });
+
+        this.addCommand({
+            langKey: 'createNoteBatch',
+            hotkey: '',
             callback: async () => {
                 await this.api.processContentBatch(await this.getTextClipboardContent());
             },
         });
 
         this.addCommand({
-            id: 'insert-at-cursor',
-            name: 'Insert at the cursor position',
-            editorCallback: async (editor: Editor) => {
-                await this.api.insertContentAtEditorCursorPosition(await this.getTextClipboardContent(), editor);
+            langKey: 'insertAtCursor',
+            hotkey: '',
+            editorCallback: async (protyle) => {
+                await this.api.insertContentAtEditorCursorPosition(await this.getTextClipboardContent(), protyle);
             },
         });
 
-        this.addSettingTab(new ReadItLaterSettingsTab(this.app, this));
+        // openSetting() is provided by ReadItLaterSettingsTab below
+    }
 
-        if (this.settings.extendShareMenu) {
-            this.registerEvent(
-                //eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                //@ts-ignore
-                this.app.workspace.on('receive-text-menu', (menu: Menu, shareText: string) => {
-                    menu.addItem((item: MenuItem) => {
-                        item.setTitle('ReadItLater');
-                        item.setIcon('read-it-later');
-                        item.onClick(() => this.api.processContent(shareText));
-                    });
-                }),
-            );
-        }
-
-        this.registerEvent(
-            this.app.workspace.on('url-menu', (menu: Menu, url: string) => {
-                if (isValidUrl(url, [HTTP_PROTOCOL, HTTPS_PROTOCOL])) {
-                    menu.addItem((item: MenuItem) => {
-                        item.setTitle('ReadItLater');
-                        item.setIcon('read-it-later');
-                        item.onClick(() => this.api.processContent(url));
-                    });
-                }
-            }),
-        );
+    async openSetting(): Promise<void> {
+        const settingsTab = new ReadItLaterSettingsTab(this);
+        settingsTab.open();
     }
 
     async loadSettings(): Promise<void> {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        // loadData resolves to "" when the storage file does not exist yet, to a JSON
+        // string or an already parsed object afterwards; never let a parse failure
+        // kill onload or the whole plugin stays dead (settings page won't open).
+        let storedSettings: Partial<ReadItLaterSettings> | undefined;
+        try {
+            const storedData = await this.loadData('settings.json');
+            if (typeof storedData === 'string') {
+                storedSettings = storedData.trim() !== '' ? JSON.parse(storedData) : undefined;
+            } else {
+                storedSettings = storedData;
+            }
+        } catch (error) {
+            console.warn('ReadItLater: stored settings are unreadable, falling back to defaults', error);
+        }
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings ?? {});
     }
 
     async saveSetting(setting: string, value: ReadItLaterSettingValue): Promise<void> {
@@ -136,20 +135,33 @@ export default class ReadItLaterPlugin extends Plugin {
     }
 
     async saveSettings(): Promise<void> {
-        await this.saveData(this.settings);
+        await this.saveData('settings.json', this.settings);
     }
 
     async getTextClipboardContent(): Promise<string> {
-        return await navigator.clipboard.readText();
+        try {
+            return await navigator.clipboard.readText();
+        } catch (error) {
+            new Notice(String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.'));
+            return '';
+        }
+    }
+
+    private async createFromClipboard(): Promise<void> {
+        const content = await this.getTextClipboardContent();
+        if (content.trim() === '') {
+            return;
+        }
+        await this.api.processContent(content);
     }
 }
 
-const clipboardIcon = `
-<svg fill="currentColor" stroke="currentColor" version="1.1" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-	<g>
-		<path d="m365.9,144.9c-12.3,0-24.2,1.8-35.4,5.2v-114.7h-96.9l7.3-35.4h-150.2l6.8,35.4h-97.5v454.6h330.5v-102.1c11.2,3.4 23.1,5.2 35.4,5.2 68.8-0.1 124.1-56.4 124.1-124.1 0-67.8-55.3-124.1-124.1-124.1zm-150.1-124l-10.4,50h-79.2l-9.4-50h99zm93.8,448.2h-288.7v-412.8h80.7l6.8,35.4h113.6l7.3-35.4h80.3v102.2c-27.3,14-48.8,37.9-59.7,66.7h-200.9v20.8h195c-1.4,7.4-2.2,15.1-2.2,22.9 0,13.4 2.2,26.4 6.2,38.6h-199v20.9h208.1c12,21.8 30.3,39.7 52.5,51.1v89.6zm56.3-98c-57.3,0-103.2-46.9-103.2-103.2s46.9-103.2 103.2-103.2c57.3,0 103.2,46.9 103.2,103.2s-45.8,103.2-103.2,103.2z"/>
-		<polygon points="426.4,223.1 346.1,303.4 313.8,271.1 299.2,285.7 346.1,332.6 441,237.7   "/>
-		<rect width="233.5" x="49" y="143.9" height="20.9"/>
-		<rect width="233.5" x="49" y="388.9" height="20.9"/>
-	</g>
-</svg>`;
+const readItLaterIcon = `
+<symbol id="iconReadItLater" viewBox="0 0 512 512">
+<g fill="currentColor" stroke="currentColor">
+<path d="m365.9,144.9c-12.3,0-24.2,1.8-35.4,5.2v-114.7h-96.9l7.3-35.4h-150.2l6.8,35.4h-97.5v454.6h330.5v-102.1c11.2,3.4 23.1,5.2 35.4,5.2 68.8-0.1 124.1-56.4 124.1-124.1 0-67.8-55.3-124.1-124.1-124.1zm-150.1-124l-10.4,50h-79.2l-9.4-50h99zm93.8,448.2h-288.7v-412.8h80.7l6.8,35.4h113.6l7.3-35.4h80.3v102.2c-27.3,14-48.8,37.9-59.7,66.7h-200.9v20.8h195c-1.4,7.4-2.2,15.1-2.2,22.9 0,13.4 2.2,26.4 6.2,38.6h-199v20.9h208.1c12,21.8 30.3,39.7 52.5,51.1v89.6zm56.3-98c-57.3,0-103.2-46.9-103.2-103.2s46.9-103.2 103.2-103.2c57.3,0 103.2,46.9 103.2,103.2s-45.8,103.2-103.2,103.2z"/>
+<polygon points="426.4,223.1 346.1,303.4 313.8,271.1 299.2,285.7 346.1,332.6 441,237.7"/>
+<rect width="233.5" x="49" y="143.9" height="20.9"/>
+<rect width="233.5" x="49" y="388.9" height="20.9"/>
+</g>
+</symbol>`;

@@ -1,4 +1,4 @@
-import { request } from 'obsidian';
+import { request } from 'src/api/http';
 import { getJavascriptDeclarationByName } from 'src/helpers/domUtils';
 import { handleError } from 'src/helpers/error';
 import { desktopBrowserUserAgent } from 'src/helpers/networkUtils';

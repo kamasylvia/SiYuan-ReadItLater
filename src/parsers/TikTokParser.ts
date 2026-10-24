@@ -1,4 +1,4 @@
-import { requestUrl } from 'obsidian';
+import { requestUrl } from 'src/api/http';
 import { handleError } from 'src/helpers/error';
 import { Note } from './Note';
 import { Parser } from './Parser';

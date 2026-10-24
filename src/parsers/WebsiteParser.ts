@@ -1,4 +1,6 @@
-import { Notice, Platform, RequestUrlResponse, requestUrl } from 'obsidian';
+import { Notice } from 'src/ui/notice';
+import { RequestUrlResponseLike, requestUrl } from 'src/api/http';
+import { recoverClientRenderedCodeBlocks } from 'src/helpers/notionCodeRecovery';
 import { Readability, isProbablyReaderable } from '@mozilla/readability';
 import * as DOMPurify from 'isomorphic-dompurify';
 import { getBaseUrl, normalizeFilename } from 'src/helpers/fileutils';
@@ -115,6 +117,10 @@ class WebsiteParser extends Parser {
     protected async getDocument(url: URL): Promise<Document> {
         const document = await this.parseHtmlDom(url);
 
+        // Notion-style pages render code client-side only; restore from the embedded
+        // block JSON before the DOM gets cleaned up and fed to Readability.
+        recoverClientRenderedCodeBlocks(document);
+
         //check for existing base element
         const originBasElements = document.getElementsByTagName('base');
         let originBaseUrl = null;
@@ -201,7 +207,7 @@ class WebsiteParser extends Parser {
 
         let processedContent = this.templateEngine.render(this.plugin.settings.parsableArticleNote, data);
 
-        if (this.plugin.settings.downloadImages && Platform.isDesktop) {
+        if (this.plugin.settings.downloadImages) {
             processedContent = await replaceImages(
                 this.plugin,
                 normalizeFilename(fileNameTemplate),
@@ -239,7 +245,7 @@ class WebsiteParser extends Parser {
             date: this.getFormattedDateForFilename(createdAt),
         });
 
-        if (this.plugin.settings.downloadImages && Platform.isDesktop) {
+        if (this.plugin.settings.downloadImages) {
             content = await replaceImages(
                 this.plugin,
                 normalizeFilename(fileNameTemplate),
@@ -335,8 +341,15 @@ class WebsiteParser extends Parser {
         const charset: string = charsetOverride ?? this.getCharsetFromResponseHeader(response);
 
         const buffer = response.arrayBuffer;
-        const decoder = new TextDecoder(charset);
-        const text = decoder.decode(buffer);
+        let text: string;
+        try {
+            text = new TextDecoder(charset).decode(buffer);
+        } catch (error) {
+            // Some servers send junk charset labels (e.g. duplicated Content-Type
+            // headers joined as "UTF-8, text/html"); fall back to UTF-8.
+            console.warn(`ReadItLater: invalid charset "${charset}", falling back to UTF-8`);
+            text = new TextDecoder('UTF-8').decode(buffer);
+        }
 
         const parser = new DOMParser();
         const document = parser.parseFromString(text, 'text/html');
@@ -345,8 +358,10 @@ class WebsiteParser extends Parser {
         const metaCharset = document.querySelector('meta[charset], meta[http-equiv="Content-Type"]');
         if (metaCharset) {
             const docCharset =
-                metaCharset.getAttribute('charset') ||
-                metaCharset.getAttribute('content')?.match(/charset=([^;]+)/i)?.[1];
+                this.normalizeCharset(
+                    metaCharset.getAttribute('charset') ||
+                        metaCharset.getAttribute('content')?.match(/charset=([^;]+)/i)?.[1],
+                ) ?? '';
             if (docCharset && docCharset !== charset) {
                 // If different charset found in meta, re-decode
                 return this.parseHtmlDom(url, docCharset);
@@ -356,17 +371,33 @@ class WebsiteParser extends Parser {
         return document;
     }
 
-    private getCharsetFromResponseHeader(response: RequestUrlResponse): string {
+    private getCharsetFromResponseHeader(response: RequestUrlResponseLike): string {
         const contentType = response.headers?.['content-type'];
         let charset = 'UTF-8';
 
         // Try to extract charset from content-type header
         const charsetMatch = contentType?.match(/charset=([^;]+)/i);
         if (charsetMatch) {
-            charset = charsetMatch[1];
+            charset = this.normalizeCharset(charsetMatch[1]) ?? 'UTF-8';
         }
 
         return charset;
+    }
+
+    /**
+     * Cleans a charset label. Content-Type may contain several comma-separated
+     * values when a server sends the header twice (mp.weixin.qq.com does), and
+     * values may be quoted — anything but a plain token is discarded.
+     */
+    private normalizeCharset(charset: string | undefined | null): string | null {
+        if (!charset) {
+            return null;
+        }
+        const label = charset
+            .split(',')[0]
+            .trim()
+            .replace(/^["']|["']$/g, '');
+        return /^[a-zA-Z0-9_-]+$/.test(label) ? label : null;
     }
 }
 

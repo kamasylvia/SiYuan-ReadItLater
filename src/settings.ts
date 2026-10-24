@@ -5,6 +5,7 @@ export type ReadItLaterSettingValue = string | number | boolean | Delimiter | Fi
 
 export interface ReadItLaterSettings {
     [key: string]: ReadItLaterSettingValue;
+    notebook: string;
     inboxDir: string;
     assetsDir: string;
     openNewNote: boolean;
@@ -63,7 +64,6 @@ export interface ReadItLaterSettings {
     tikTokNote: string;
     tikTokEmbedWidth: string;
     tikTokEmbedHeight: string;
-    extendShareMenu: boolean;
     filesystemLimitPath: number | null;
     filesystemLimitFileName: number | null;
     youtubeChannelContentTypeSlug: string;
@@ -84,8 +84,9 @@ export interface ReadItLaterSettings {
 }
 
 export const DEFAULT_SETTINGS: ReadItLaterSettings = {
+    notebook: '',
     inboxDir: 'ReadItLater Inbox',
-    assetsDir: 'ReadItLater Inbox/assets',
+    assetsDir: 'assets',
     openNewNote: false,
     batchProcess: false, // deperecated
     batchProcessDelimiter: Delimiter.NewLine,
@@ -147,7 +148,6 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
         '[[ReadItLater]] [[TikTok]]\n\n{{ videoDescription }}\n\n[{{ videoURL }}]({{ videoURL }})\n\n{{ videoPlayer }}',
     tikTokEmbedWidth: '325',
     tikTokEmbedHeight: '760',
-    extendShareMenu: true,
     filesystemLimitPath: null,
     filesystemLimitFileName: null,
     youtubeChannelContentTypeSlug: 'youtube-channel',

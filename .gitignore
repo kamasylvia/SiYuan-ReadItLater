@@ -7,7 +7,15 @@ node_modules
 
 # build
 main.js
+index.js
+package.zip
 *.js.map
 
-# obsidian
+# legacy obsidian build output
 data.json
+
+# local vector index (zg)
+.zvec-grep/
+
+# workspace task files
+.work/

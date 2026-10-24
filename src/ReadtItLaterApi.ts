@@ -1,4 +1,4 @@
-import { Editor } from 'obsidian';
+import type { IProtyle } from 'siyuan';
 import { NoteService } from './NoteService';
 
 export class ReadItLaterApi {
@@ -21,7 +21,7 @@ export class ReadItLaterApi {
     /**
      * Insert processed content from input at current position in editor.
      */
-    public async insertContentAtEditorCursorPosition(content: string, editor: Editor): Promise<void> {
-        this.noteService.insertContentAtEditorCursorPosition(content, editor);
+    public async insertContentAtEditorCursorPosition(content: string, protyle: IProtyle): Promise<void> {
+        this.noteService.insertContentAtEditorCursorPosition(content, protyle);
     }
 }

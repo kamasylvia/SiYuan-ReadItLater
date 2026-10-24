@@ -1,10 +1,12 @@
-import { App, Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
+import { Setting as SettingDialog } from 'siyuan';
 import { Delimiter, getDelimiterOptions } from 'src/enums/delimiter';
 import { FileExistsStrategy, getFileExistStrategyOptions } from 'src/enums/fileExistsStrategy';
 import { getDefaultFilesystenLimits } from 'src/helpers/fileutils';
-import { createHTMLDiv } from 'src/helpers/setting';
+import { listNotebooks } from 'src/api/kernel';
 import ReadItLaterPlugin from 'src/main';
 import { DEFAULT_SETTINGS } from 'src/settings';
+
+type I18n = Record<string, string>;
 
 enum DetailsItem {
     ReadableArticle = 'readableArticle',
@@ -22,1299 +24,621 @@ enum DetailsItem {
     TextSnippet = 'textSnippet',
 }
 
-export class ReadItLaterSettingsTab extends PluginSettingTab {
-    plugin: ReadItLaterPlugin;
+export class ReadItLaterSettingsTab {
+    private plugin: ReadItLaterPlugin;
 
-    private activeDetatils: string[] = [];
+    private i18n: I18n;
+    private activeDetails: string[] = [];
 
-    constructor(app: App, plugin: ReadItLaterPlugin) {
-        super(app, plugin);
+    constructor(plugin: ReadItLaterPlugin) {
         this.plugin = plugin;
+        this.i18n = (plugin.i18n ?? {}) as I18n;
     }
 
-    display(): void {
-        const { containerEl } = this;
-
-        containerEl.empty();
-
-        containerEl.createEl('h2', { text: 'General' });
-
-        new Setting(containerEl)
-            .setName('Inbox directory')
-            .setDesc(
-                'Enter valid directory name. For nested directory use this format: Directory A/Directory B. If no directory is entered, new note will be created in vault root.',
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder('Defaults to vault root directory')
-                    .setValue(
-                        typeof this.plugin.settings.inboxDir === 'undefined'
-                            ? DEFAULT_SETTINGS.inboxDir
-                            : this.plugin.settings.inboxDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.inboxDir = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Assets directory')
-            .setDesc(
-                'Enter valid directory name. For nested directory use this format: Directory A/Directory B. If no directory is entered, new note will be created in Vault root.',
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder('Defaults to vault root directory')
-                    .setValue(
-                        typeof this.plugin.settings.assetsDir === 'undefined'
-                            ? DEFAULT_SETTINGS.inboxDir + '/assets'
-                            : this.plugin.settings.assetsDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.assetsDir = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Open new note in current workspace')
-            .setDesc('If enabled, new note will open in current workspace')
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.openNewNote || DEFAULT_SETTINGS.openNewNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.openNewNote = value;
-                        if (value === true) {
-                            this.plugin.settings.openNewNoteInNewTab = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Open new note in new tab')
-            .setDesc('If enabled, new note will open in new tab')
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.openNewNoteInNewTab || DEFAULT_SETTINGS.openNewNoteInNewTab)
-                    .onChange(async (value) => {
-                        this.plugin.settings.openNewNoteInNewTab = value;
-                        if (value === true) {
-                            this.plugin.settings.openNewNote = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Duplicate note filename behavior')
-            .setDesc('Applied when note with the same filename already exists')
-            .addDropdown((dropdown) => {
-                getFileExistStrategyOptions().forEach((fileExistsStrategyOption) =>
-                    dropdown.addOption(fileExistsStrategyOption.option, fileExistsStrategyOption.label),
-                );
-
-                dropdown.setValue(this.plugin.settings.fileExistsStrategy || DEFAULT_SETTINGS.fileExistsStrategy);
-
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.fileExistsStrategy = value as FileExistsStrategy;
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Batch note creation delimiter')
-            .setDesc('Delimiter for batch list of notes')
-            .addDropdown((dropdown) => {
-                getDelimiterOptions().forEach((delimiterOption) =>
-                    dropdown.addOption(delimiterOption.option, delimiterOption.label),
-                );
-
-                dropdown.setValue(this.plugin.settings.batchProcessDelimiter || DEFAULT_SETTINGS.batchProcessDelimiter);
-
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.batchProcessDelimiter = value as Delimiter;
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Date format string')
-            .setDesc('Format of the %date% variable. NOTE: do not use symbols forbidden in file names.')
-            .addText((text) =>
-                text
-                    .setPlaceholder(`Defaults to ${DEFAULT_SETTINGS.dateTitleFmt}`)
-                    .setValue(
-                        typeof this.plugin.settings.dateTitleFmt === 'undefined'
-                            ? DEFAULT_SETTINGS.dateTitleFmt
-                            : this.plugin.settings.dateTitleFmt,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.dateTitleFmt = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Date format string in content')
-            .setDesc('Format of the %date% variable for content')
-            .addText((text) =>
-                text
-                    .setPlaceholder(`Defaults to ${DEFAULT_SETTINGS.dateContentFmt}`)
-                    .setValue(
-                        typeof this.plugin.settings.dateContentFmt === 'undefined'
-                            ? DEFAULT_SETTINGS.dateContentFmt
-                            : this.plugin.settings.dateContentFmt,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.dateContentFmt = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Extend share menu')
-            .setDesc(
-                'If enabled, share menu will be extended with shortcut to create note directly from it. Requires plugin reload or Obsidian restart to apply change.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'extendShareMenu')
-                            ? this.plugin.settings.extendShareMenu
-                            : DEFAULT_SETTINGS.extendShareMenu,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.extendShareMenu = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(containerEl)
-            .setName('Youtube Data API v3 key')
-            .setDesc('If entered, Youtube related content types will use Youtube API to fetch the data.')
-            .addText((text) =>
-                text
-                    .setPlaceholder('')
-                    .setValue(this.plugin.settings.youtubeApiKey || DEFAULT_SETTINGS.youtubeApiKey)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeApiKey = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        containerEl.createEl('h1', { text: 'Content Types' });
-        containerEl.createDiv({ text: 'Settings for each content. Click on caret to expand.' });
-
-        let detailsEl: HTMLElement;
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.ReadableArticle);
-        detailsEl.createEl('summary', {
-            text: 'Readable Article',
-            cls: 'readitlater-setting-h3',
+    open(): void {
+        const dialog = new SettingDialog({
+            width: '860px',
+            height: '80vh',
+            confirmCallback: () => {
+                // Settings persist on change; nothing to flush on close.
+            },
         });
 
-        new Setting(detailsEl)
-            .setName('Readable content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.parseableArticleContentType)
-                    .setValue(
-                        typeof this.plugin.settings.parseableArticleContentType === 'undefined'
-                            ? DEFAULT_SETTINGS.parseableArticleContentType
-                            : this.plugin.settings.parseableArticleContentType,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.parseableArticleContentType = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Readable article note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.parseableArticleNoteTitle)
-                    .setValue(
-                        this.plugin.settings.parseableArticleNoteTitle || DEFAULT_SETTINGS.parseableArticleNoteTitle,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.parseableArticleNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Readable article note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.parsableArticleNote || DEFAULT_SETTINGS.parsableArticleNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.parsableArticleNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Download images')
-            .setDesc(
-                'Images from article will be downloaded to the assets directory (Desktop App feature only). To dynamically change destination directory you can use variables. Check variables reference to learn more.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadImages')
-                            ? this.plugin.settings.downloadImages
-                            : DEFAULT_SETTINGS.downloadImages,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadImages = value;
-                        if (value === false) {
-                            this.plugin.settings.downloadImagesInArticleDir = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Download images to note directory')
-            .setDesc(
-                'Images from article will be downloaded to the dedicated note assets directory (Desktop App feature only). Overrides assets directory template.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadImagesInArticleDir')
-                            ? this.plugin.settings.downloadImagesInArticleDir
-                            : DEFAULT_SETTINGS.downloadImagesInArticleDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadImagesInArticleDir = value;
-                        if (value === true) {
-                            this.plugin.settings.downloadImages = true;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Youtube);
-        detailsEl.createEl('summary', {
-            text: 'YouTube',
-            cls: 'readitlater-setting-h3',
+        // direction "row" stacks the section title above a full-width action container;
+        // "column" would force the container into fn__size200 (200px) and crush the layout.
+        dialog.addItem({
+            title: this.t('settingsGeneral'),
+            direction: 'row',
+            actionElement: this.createGeneralSection(),
         });
 
-        new Setting(detailsEl)
-            .setName('Youtube content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.youtubeContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.youtubeContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.youtubeContentTypeSlug
-                            : this.plugin.settings.youtubeContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Youtube note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.youtubeNoteTitle)
-                    .setValue(this.plugin.settings.youtubeNoteTitle || DEFAULT_SETTINGS.youtubeNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Youtube note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.youtubeNote || DEFAULT_SETTINGS.youtubeNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Youtube chapter template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.youtubeChapter || DEFAULT_SETTINGS.youtubeChapter)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeChapter = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl).setName('Youtube embed player width').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.youtubeEmbedWidth)
-                .setValue(this.plugin.settings.youtubeEmbedWidth || DEFAULT_SETTINGS.youtubeEmbedWidth)
-                .onChange(async (value) => {
-                    this.plugin.settings.youtubeEmbedWidth = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl).setName('Youtube embed player height').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.youtubeEmbedHeight)
-                .setValue(this.plugin.settings.youtubeEmbedHeight || DEFAULT_SETTINGS.youtubeEmbedHeight)
-                .onChange(async (value) => {
-                    this.plugin.settings.youtubeEmbedHeight = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl)
-            .setName('Embed in privacy enhanced mode')
-            .setDesc(
-                'If enabled, content will be embeded in privacy enhanced mode, which prevents the use of views of it from influencing the viewer’s browsing experience on YouTube.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'youtubeUsePrivacyEnhancedEmbed')
-                            ? this.plugin.settings.youtubeUsePrivacyEnhancedEmbed
-                            : DEFAULT_SETTINGS.youtubeUsePrivacyEnhancedEmbed,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeUsePrivacyEnhancedEmbed = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.YoutubeChannel);
-        detailsEl.createEl('summary', {
-            text: 'YouTube channel',
-            cls: 'readitlater-setting-h3',
+        dialog.addItem({
+            title: this.t('settingsContentTypes'),
+            direction: 'row',
+            actionElement: this.createContentTypesSection(),
         });
 
-        new Setting(detailsEl)
-            .setName('Youtube channel content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.youtubeChannelContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.youtubeChannelContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.youtubeChannelContentTypeSlug
-                            : this.plugin.settings.youtubeChannelContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeChannelContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Youtube channel note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.youtubeChannelNoteTitle)
-                    .setValue(this.plugin.settings.youtubeChannelNoteTitle || DEFAULT_SETTINGS.youtubeChannelNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeChannelNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Youtube channel note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.youtubeChannelNote || DEFAULT_SETTINGS.youtubeChannelNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.youtubeChannelNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.X);
-        detailsEl.createEl('summary', {
-            text: 'X.com',
-            cls: 'readitlater-setting-h3',
+        dialog.addItem({
+            title: this.t('settingsAdvanced'),
+            direction: 'row',
+            actionElement: this.createAdvancedSection(),
         });
 
-        new Setting(detailsEl)
-            .setName('X.com content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.twitterContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.twitterContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.twitterContentTypeSlug
-                            : this.plugin.settings.twitterContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.twitterContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('X.com note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.twitterNoteTitle)
-                    .setValue(this.plugin.settings.twitterNoteTitle || DEFAULT_SETTINGS.twitterNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.twitterNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-        new Setting(detailsEl)
-            .setName('X.com note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.twitterNote || DEFAULT_SETTINGS.twitterNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.twitterNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Bluesky);
-        detailsEl.createEl('summary', {
-            text: 'Bluesky',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Bluesky content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.blueskyContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.blueskyContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.blueskyContentTypeSlug
-                            : this.plugin.settings.blueskyContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.blueskyContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Bluesky note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.blueskyNoteTitle)
-                    .setValue(this.plugin.settings.blueskyNoteTitle || DEFAULT_SETTINGS.blueskyNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.blueskyNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Bluesky note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.blueskyNote || DEFAULT_SETTINGS.blueskyNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.blueskyNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Download embedded content')
-            .setDesc(
-                'Embedded content will be downloaded to the assets directory (Desktop App feature only). To dynamically change destination directory you can use variables. Check variables reference to learn more.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadBlueskyEmbeds')
-                            ? this.plugin.settings.downloadBlueskyEmbeds
-                            : DEFAULT_SETTINGS.downloadBlueskyEmbeds,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadBlueskyEmbeds = value;
-                        if (value === false) {
-                            this.plugin.settings.downloadBlueskyEmbedsInDir = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Download embedded content to note directory')
-            .setDesc(
-                'Embedded content will be downloaded to the dedicated note assets directory (Desktop App feature only). Overrides assets directory template.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadBlueskyEmbedsInDir')
-                            ? this.plugin.settings.downloadBlueskyEmbedsInDir
-                            : DEFAULT_SETTINGS.downloadBlueskyEmbedsInDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadBlueskyEmbedsInDir = value;
-                        if (value === true) {
-                            this.plugin.settings.downloadBlueskyEmbeds = true;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Save replies')
-            .setDesc('If enabled, post replies will be saved.')
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'saveBlueskyPostReplies')
-                            ? this.plugin.settings.saveBlueskyPostReplies
-                            : DEFAULT_SETTINGS.saveBlueskyPostReplies,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.saveBlueskyPostReplies = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl).setName('Bluesky post reply template').addTextArea((textarea) => {
-            textarea
-                .setValue(this.plugin.settings.blueskyPostReply || DEFAULT_SETTINGS.blueskyPostReply)
-                .onChange(async (value) => {
-                    this.plugin.settings.blueskyPostReply = value;
-                    await this.plugin.saveSettings();
-                });
-            textarea.inputEl.rows = 10;
-            textarea.inputEl.cols = 25;
-        });
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.StackExchange);
-        detailsEl.createEl('summary', {
-            text: 'Stack Exchange',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Stack Exchange content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.stackExchangeContentType)
-                    .setValue(
-                        typeof this.plugin.settings.stackExchangeContentType === 'undefined'
-                            ? DEFAULT_SETTINGS.stackExchangeContentType
-                            : this.plugin.settings.stackExchangeContentType,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.stackExchangeContentType = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl).setName('Stack Exchange note title template').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.stackExchangeNoteTitle)
-                .setValue(this.plugin.settings.stackExchangeNoteTitle || DEFAULT_SETTINGS.stackExchangeNoteTitle)
-                .onChange(async (value) => {
-                    this.plugin.settings.stackExchangeNoteTitle = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl)
-            .setName('Stack Exchange question note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.stackExchangeNote || DEFAULT_SETTINGS.stackExchangeNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.stackExchangeNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Stack Exchange answer template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.stackExchangeAnswer || DEFAULT_SETTINGS.stackExchangeAnswer)
-                    .onChange(async (value) => {
-                        this.plugin.settings.stackExchangeAnswer = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Download media attachments')
-            .setDesc(
-                'Media attachments will be downloaded to the assets directory (Desktop App feature only). To dynamically change destination directory you can use variables. Check variables reference to learn more.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadStackExchangeAssets')
-                            ? this.plugin.settings.downloadStackExchangeAssets
-                            : DEFAULT_SETTINGS.downloadStackExchangeAssets,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadStackExchangeAssets = value;
-                        if (value === false) {
-                            this.plugin.settings.downloadStackExchangeAssetsInDir = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Download media attachments to note directory')
-            .setDesc(
-                'Media attachments will be downloaded to the dedicated note assets directory (Desktop App feature only). Overrides assets directory template.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadStackExchangeAssetsInDir')
-                            ? this.plugin.settings.downloadStackExchangeAssetsInDir
-                            : DEFAULT_SETTINGS.downloadStackExchangeAssetsInDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadStackExchangeAssetsInDir = value;
-                        if (value === true) {
-                            this.plugin.settings.downloadStackExchangeAssets = true;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Pinterest);
-        detailsEl.createEl('summary', {
-            text: 'Pinterest',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Pinterest content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.pinterestContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.pinterestContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.pinterestContentTypeSlug
-                            : this.plugin.settings.pinterestContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.pinterestContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Pinterest note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.pinterestNoteTitle)
-                    .setValue(this.plugin.settings.pinterestNoteTitle || DEFAULT_SETTINGS.pinterestNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.pinterestNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Pinterest note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.pinterestNote || DEFAULT_SETTINGS.pinterestNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.pinterestNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Download image')
-            .setDesc(
-                'Image will be downloaded to the assets directory (Desktop App feature only). To dynamically change destination directory you can use variables. Check variables reference to learn more.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadPinterestImage')
-                            ? this.plugin.settings.downloadPinterestImage
-                            : DEFAULT_SETTINGS.downloadPinterestImage,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadPinterestImage = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Mastodon);
-        detailsEl.createEl('summary', {
-            text: 'Mastodon',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Mastodon content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.mastodonContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.mastodonContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.mastodonContentTypeSlug
-                            : this.plugin.settings.mastodonContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.mastodonContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Mastodon note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.mastodonNoteTitle)
-                    .setValue(this.plugin.settings.mastodonNoteTitle || DEFAULT_SETTINGS.mastodonNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.mastodonNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Mastodon note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.mastodonNote || DEFAULT_SETTINGS.mastodonNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.mastodonNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl)
-            .setName('Download media attachments')
-            .setDesc(
-                'Media attachments will be downloaded to the assets directory (Desktop App feature only). To dynamically change destination directory you can use variables. Check variables reference to learn more.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'downloadMastodonMediaAttachments')
-                            ? this.plugin.settings.downloadMastodonMediaAttachments
-                            : DEFAULT_SETTINGS.downloadMastodonMediaAttachments,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadMastodonMediaAttachments = value;
-                        if (value === false) {
-                            this.plugin.settings.downloadMastodonMediaAttachmentsInDir = false;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Download media attachments to note directory')
-            .setDesc(
-                'Media attachments will be downloaded to the dedicated note assets directory (Desktop App feature only). Overrides assets directory template.',
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(
-                            this.plugin.settings,
-                            'downloadMastodonMediaAttachmentsInDir',
-                        )
-                            ? this.plugin.settings.downloadMastodonMediaAttachmentsInDir
-                            : DEFAULT_SETTINGS.downloadMastodonMediaAttachmentsInDir,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.downloadMastodonMediaAttachmentsInDir = value;
-                        if (value === true) {
-                            this.plugin.settings.downloadMastodonMediaAttachments = true;
-                        }
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Save replies')
-            .setDesc('If enabled, replies of toot will be saved.')
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(
-                        Object.prototype.hasOwnProperty.call(this.plugin.settings, 'saveMastodonReplies')
-                            ? this.plugin.settings.saveMastodonReplies
-                            : DEFAULT_SETTINGS.saveMastodonReplies,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.saveMastodonReplies = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl).setName('Mastodon reply template').addTextArea((textarea) => {
-            textarea
-                .setValue(this.plugin.settings.mastodonReply || DEFAULT_SETTINGS.mastodonReply)
-                .onChange(async (value) => {
-                    this.plugin.settings.mastodonReply = value;
-                    await this.plugin.saveSettings();
-                });
-            textarea.inputEl.rows = 10;
-            textarea.inputEl.cols = 25;
-        });
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Vimeo);
-        detailsEl.createEl('summary', {
-            text: 'Vimeo',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Vimeo content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.vimeoContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.vimeoContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.vimeoContentTypeSlug
-                            : this.plugin.settings.vimeoContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.vimeoContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Vimeo note title template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.vimeoNoteTitle)
-                    .setValue(this.plugin.settings.vimeoNoteTitle || DEFAULT_SETTINGS.vimeoNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.vimeoNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Vimeo note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.vimeoNote || DEFAULT_SETTINGS.vimeoNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.vimeoNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl).setName('Vimeo embed player width').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.vimeoEmbedWidth)
-                .setValue(this.plugin.settings.vimeoEmbedWidth || DEFAULT_SETTINGS.vimeoEmbedWidth)
-                .onChange(async (value) => {
-                    this.plugin.settings.vimeoEmbedWidth = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl).setName('Vimeo embed player height').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.vimeoEmbedHeight)
-                .setValue(this.plugin.settings.vimeoEmbedHeight || DEFAULT_SETTINGS.vimeoEmbedHeight)
-                .onChange(async (value) => {
-                    this.plugin.settings.vimeoEmbedHeight = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.Bilibili);
-        detailsEl.createEl('summary', {
-            text: 'Bilibili',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Bilibili content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.bilibiliContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.bilibiliContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.bilibiliContentTypeSlug
-                            : this.plugin.settings.bilibiliContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.bilibiliContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Bilibili note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.bilibiliNoteTitle)
-                    .setValue(this.plugin.settings.bilibiliNoteTitle || DEFAULT_SETTINGS.bilibiliNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.bilibiliNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Bilibili note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.bilibiliNote || DEFAULT_SETTINGS.bilibiliNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.bilibiliNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl).setName('Bilibili embed player width').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.bilibiliEmbedWidth)
-                .setValue(this.plugin.settings.bilibiliEmbedWidth || DEFAULT_SETTINGS.bilibiliEmbedWidth)
-                .onChange(async (value) => {
-                    this.plugin.settings.bilibiliEmbedWidth = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl).setName('Bilibili embed player height').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.bilibiliEmbedHeight)
-                .setValue(this.plugin.settings.bilibiliEmbedHeight || DEFAULT_SETTINGS.bilibiliEmbedHeight)
-                .onChange(async (value) => {
-                    this.plugin.settings.bilibiliEmbedHeight = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.TikTok);
-        detailsEl.createEl('summary', {
-            text: 'TikTok',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('TikTok content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.tikTokContentTypeSlug)
-                    .setValue(
-                        typeof this.plugin.settings.tikTokContentTypeSlug === 'undefined'
-                            ? DEFAULT_SETTINGS.tikTokContentTypeSlug
-                            : this.plugin.settings.tikTokContentTypeSlug,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.tikTokContentTypeSlug = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('TikTok note title template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.tikTokNoteTitle)
-                    .setValue(this.plugin.settings.tikTokNoteTitle || DEFAULT_SETTINGS.tikTokNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.tikTokNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('TikTok note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.tikTokNote || DEFAULT_SETTINGS.tikTokNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.tikTokNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        new Setting(detailsEl).setName('TikTok embed player width').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.tikTokEmbedWidth)
-                .setValue(this.plugin.settings.tikTokEmbedWidth || DEFAULT_SETTINGS.tikTokEmbedWidth)
-                .onChange(async (value) => {
-                    this.plugin.settings.tikTokEmbedWidth = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        new Setting(detailsEl).setName('TikTok embed player height').addText((text) =>
-            text
-                .setPlaceholder(DEFAULT_SETTINGS.tikTokEmbedHeight)
-                .setValue(this.plugin.settings.tikTokEmbedHeight || DEFAULT_SETTINGS.tikTokEmbedHeight)
-                .onChange(async (value) => {
-                    this.plugin.settings.tikTokEmbedHeight = value;
-                    await this.plugin.saveSettings();
-                }),
-        );
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.NonReadableArticle);
-        detailsEl.createEl('summary', {
-            text: 'Nonreadable Article',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Nonreadable content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.notParseableArticleContentType)
-                    .setValue(
-                        typeof this.plugin.settings.notParseableArticleContentType === 'undefined'
-                            ? DEFAULT_SETTINGS.notParseableArticleContentType
-                            : this.plugin.settings.notParseableArticleContentType,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.notParseableArticleContentType = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Nonreadable article note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.notParseableArticleNoteTitle)
-                    .setValue(
-                        this.plugin.settings.notParseableArticleNoteTitle ||
-                            DEFAULT_SETTINGS.notParseableArticleNoteTitle,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.notParseableArticleNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Nonreadable article note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.notParsableArticleNote || DEFAULT_SETTINGS.notParsableArticleNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.notParsableArticleNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        containerEl.createEl('hr', { cls: 'readitlater-setting-hr' });
-        detailsEl = this.createDetailsElement(containerEl, DetailsItem.TextSnippet);
-        detailsEl.createEl('summary', {
-            text: 'Text Snippet',
-            cls: 'readitlater-setting-h3',
-        });
-
-        new Setting(detailsEl)
-            .setName('Text Snippet content type slug')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.textSnippetContentType)
-                    .setValue(
-                        typeof this.plugin.settings.textSnippetContentType === 'undefined'
-                            ? DEFAULT_SETTINGS.textSnippetContentType
-                            : this.plugin.settings.textSnippetContentType,
-                    )
-                    .onChange(async (value) => {
-                        this.plugin.settings.textSnippetContentType = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Text snippet note template title')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addText((text) =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.textSnippetNoteTitle)
-                    .setValue(this.plugin.settings.textSnippetNoteTitle || DEFAULT_SETTINGS.textSnippetNoteTitle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.textSnippetNoteTitle = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
-
-        new Setting(detailsEl)
-            .setName('Text snippet note template')
-            .setDesc(this.createTemplateVariableReferenceDiv())
-            .addTextArea((textarea) => {
-                textarea
-                    .setValue(this.plugin.settings.textSnippetNote || DEFAULT_SETTINGS.textSnippetNote)
-                    .onChange(async (value) => {
-                        this.plugin.settings.textSnippetNote = value;
-                        await this.plugin.saveSettings();
-                    });
-                textarea.inputEl.rows = 10;
-                textarea.inputEl.cols = 25;
-            });
-
-        containerEl.createEl('h2', { text: 'Advanced' });
-
-        const defaultFilesystemLimits = getDefaultFilesystenLimits(Platform);
-
-        new Setting(containerEl)
-            .setName('Maximum file path length')
-            .setDesc(`Defaults to ${defaultFilesystemLimits.path} characters on your current platform.`)
-            .addText((text) =>
-                text.setPlaceholder(String(defaultFilesystemLimits.path)).onChange(async (value) => {
-                    const trimmedValue = value.trim();
-                    if (trimmedValue !== '' && Number.isNaN(Number(trimmedValue))) {
-                        new Notice('Maximum file path length must be a number.');
-                        return;
-                    }
-                    if (trimmedValue === '') {
-                        this.plugin.settings.filesystemLimitPath = null;
-                    } else {
-                        this.plugin.settings.filesystemLimitPath = Number(trimmedValue);
-                    }
-                    await this.plugin.saveSettings();
-                }),
-            );
-
-        new Setting(containerEl)
-            .setName('Maximum file name length')
-            .setDesc(`Defaults to ${defaultFilesystemLimits.fileName} characters on your current platform.`)
-            .addText((text) =>
-                text.setPlaceholder(String(defaultFilesystemLimits.fileName)).onChange(async (value) => {
-                    const trimmedValue = value.trim();
-                    if (trimmedValue !== '' && Number.isNaN(Number(trimmedValue))) {
-                        new Notice('Maximum file name length must be a number.');
-                        return;
-                    }
-                    if (trimmedValue === '') {
-                        this.plugin.settings.filesystemLimitFileName = null;
-                    } else {
-                        this.plugin.settings.filesystemLimitFileName = Number(trimmedValue);
-                    }
-                    await this.plugin.saveSettings();
-                }),
-            );
+        dialog.open(this.plugin.displayName || 'ReadItLater');
     }
 
-    private createDetailsElement(parentElement: HTMLElement, itemId: DetailsItem): HTMLElement {
-        const details = parentElement.createEl('details');
+    private t(key: string): string {
+        return this.i18n[key] ?? key;
+    }
+
+    // ---------------------------------------------------------------- sections
+
+    private createGeneralSection(): HTMLElement {
+        const container = this.createSectionContainer();
+
+        const notebookRow = this.createSettingRow(this.t('settingsNotebook'), this.t('settingsNotebookDesc'));
+        const notebookSelect = document.createElement('select');
+        notebookSelect.className = 'b3-select fn__size200';
+
+        const fillNotebooks = () => {
+            notebookSelect.innerHTML = '';
+            listNotebooks()
+                .then((notebooks) => {
+                    const open = notebooks.filter((notebook) => !notebook.closed);
+                    if (open.length === 0) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = this.t('settingsNoNotebooks');
+                        notebookSelect.appendChild(option);
+                        return;
+                    }
+
+                    for (const notebook of open) {
+                        const option = document.createElement('option');
+                        option.value = notebook.id;
+                        option.textContent = notebook.name;
+                        notebookSelect.appendChild(option);
+                    }
+                    notebookSelect.value =
+                        this.plugin.settings.notebook && open.some((n) => n.id === this.plugin.settings.notebook)
+                            ? (this.plugin.settings.notebook as string)
+                            : open[0].id;
+                })
+                .catch((error) => console.error(error));
+        };
+        fillNotebooks();
+
+        notebookSelect.addEventListener('change', () => {
+            void this.plugin.saveSetting('notebook', notebookSelect.value);
+        });
+        notebookRow.appendChild(notebookSelect);
+        container.appendChild(notebookRow);
+
+        this.addTextSetting(container, this.t('settingsInboxDir'), this.t('settingsInboxDirDesc'), 'inboxDir', {
+            placeholder: 'ReadItLater Inbox',
+        });
+        this.addTextSetting(container, this.t('settingsAssetsDir'), this.t('settingsAssetsDirDesc'), 'assetsDir', {
+            placeholder: DEFAULT_SETTINGS.assetsDir as string,
+        });
+
+        this.addToggleSetting(
+            container,
+            this.t('settingsOpenNewNote'),
+            this.t('settingsOpenNewNoteDesc'),
+            'openNewNote',
+            (value) => {
+                if (value === true) {
+                    this.plugin.settings.openNewNoteInNewTab = false;
+                }
+            },
+        );
+        this.addToggleSetting(
+            container,
+            this.t('settingsOpenNewNoteInNewTab'),
+            this.t('settingsOpenNewNoteInNewTabDesc'),
+            'openNewNoteInNewTab',
+            (value) => {
+                if (value === true) {
+                    this.plugin.settings.openNewNote = false;
+                }
+            },
+        );
+
+        this.addSelectSetting(
+            container,
+            this.t('settingsFileExistsStrategy'),
+            this.t('settingsFileExistsStrategyDesc'),
+            'fileExistsStrategy',
+            getFileExistStrategyOptions().map((option) => ({ label: option.label, value: option.option })),
+        );
+
+        this.addSelectSetting(
+            container,
+            this.t('settingsBatchDelimiter'),
+            this.t('settingsBatchDelimiterDesc'),
+            'batchProcessDelimiter',
+            getDelimiterOptions().map((option) => ({ label: option.label, value: option.option })),
+        );
+
+        this.addTextSetting(container, this.t('settingsDateFormat'), this.t('settingsDateFormatDesc'), 'dateTitleFmt', {
+            placeholder: DEFAULT_SETTINGS.dateTitleFmt as string,
+        });
+        this.addTextSetting(
+            container,
+            this.t('settingsDateFormatContent'),
+            this.t('settingsDateFormatContentDesc'),
+            'dateContentFmt',
+            { placeholder: DEFAULT_SETTINGS.dateContentFmt as string },
+        );
+        this.addTextSetting(
+            container,
+            this.t('settingsYoutubeApiKey'),
+            this.t('settingsYoutubeApiKeyDesc'),
+            'youtubeApiKey',
+            { placeholder: '' },
+        );
+
+        return container;
+    }
+
+    private createContentTypesSection(): HTMLElement {
+        const container = this.createSectionContainer();
+        const info = document.createElement('div');
+        info.className = 'b3-label__text';
+        info.style.marginBottom = '8px';
+        info.textContent = this.t('settingsTemplateVarsRef');
+        container.appendChild(info);
+
+        // Readable Article
+        const articleDetails = this.createDetailsElement(container, DetailsItem.ReadableArticle, 'Readable Article');
+        this.addTextSetting(articleDetails, this.slugName(), this.templateDesc(), 'parseableArticleContentType', {
+            placeholder: DEFAULT_SETTINGS.parseableArticleContentType as string,
+        });
+        this.addTextSetting(articleDetails, this.titleName(), this.templateDesc(), 'parseableArticleNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.parseableArticleNoteTitle as string,
+        });
+        this.addTextareaSetting(articleDetails, this.noteName(), this.templateDesc(), 'parsableArticleNote');
+        this.addDownloadImagesSettings(articleDetails, 'downloadImages', 'downloadImagesInArticleDir');
+
+        // YouTube
+        const youtubeDetails = this.createDetailsElement(container, DetailsItem.Youtube, 'YouTube');
+        this.addTextSetting(youtubeDetails, this.slugName(), this.templateDesc(), 'youtubeContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.youtubeContentTypeSlug as string,
+        });
+        this.addTextSetting(youtubeDetails, this.titleName(), this.templateDesc(), 'youtubeNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.youtubeNoteTitle as string,
+        });
+        this.addTextareaSetting(youtubeDetails, this.noteName(), this.templateDesc(), 'youtubeNote');
+        this.addTextareaSetting(youtubeDetails, this.t('chapterTemplate'), this.templateDesc(), 'youtubeChapter');
+        this.addTextSetting(youtubeDetails, this.t('embedWidth'), '', 'youtubeEmbedWidth', {
+            placeholder: DEFAULT_SETTINGS.youtubeEmbedWidth as string,
+        });
+        this.addTextSetting(youtubeDetails, this.t('embedHeight'), '', 'youtubeEmbedHeight', {
+            placeholder: DEFAULT_SETTINGS.youtubeEmbedHeight as string,
+        });
+        this.addToggleSetting(
+            youtubeDetails,
+            this.t('embedPrivacy'),
+            this.t('embedPrivacyDesc'),
+            'youtubeUsePrivacyEnhancedEmbed',
+        );
+
+        // YouTube channel
+        const channelDetails = this.createDetailsElement(container, DetailsItem.YoutubeChannel, 'YouTube channel');
+        this.addTextSetting(channelDetails, this.slugName(), this.templateDesc(), 'youtubeChannelContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.youtubeChannelContentTypeSlug as string,
+        });
+        this.addTextSetting(channelDetails, this.titleName(), this.templateDesc(), 'youtubeChannelNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.youtubeChannelNoteTitle as string,
+        });
+        this.addTextareaSetting(channelDetails, this.noteName(), this.templateDesc(), 'youtubeChannelNote');
+
+        // X.com
+        const xDetails = this.createDetailsElement(container, DetailsItem.X, 'X.com');
+        this.addTextSetting(xDetails, this.slugName(), this.templateDesc(), 'twitterContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.twitterContentTypeSlug as string,
+        });
+        this.addTextSetting(xDetails, this.titleName(), this.templateDesc(), 'twitterNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.twitterNoteTitle as string,
+        });
+        this.addTextareaSetting(xDetails, this.noteName(), this.templateDesc(), 'twitterNote');
+
+        // Bluesky
+        const blueskyDetails = this.createDetailsElement(container, DetailsItem.Bluesky, 'Bluesky');
+        this.addTextSetting(blueskyDetails, this.slugName(), this.templateDesc(), 'blueskyContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.blueskyContentTypeSlug as string,
+        });
+        this.addTextSetting(blueskyDetails, this.titleName(), this.templateDesc(), 'blueskyNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.blueskyNoteTitle as string,
+        });
+        this.addTextareaSetting(blueskyDetails, this.noteName(), this.templateDesc(), 'blueskyNote');
+        this.addDownloadImagesSettings(blueskyDetails, 'downloadBlueskyEmbeds', 'downloadBlueskyEmbedsInDir', true);
+        this.addToggleSetting(
+            blueskyDetails,
+            this.t('saveReplies'),
+            this.t('saveRepliesDesc'),
+            'saveBlueskyPostReplies',
+        );
+        this.addTextareaSetting(blueskyDetails, this.t('replyTemplate'), '', 'blueskyPostReply');
+
+        // Stack Exchange
+        const stackExchangeDetails = this.createDetailsElement(container, DetailsItem.StackExchange, 'Stack Exchange');
+        this.addTextSetting(stackExchangeDetails, this.slugName(), this.templateDesc(), 'stackExchangeContentType', {
+            placeholder: DEFAULT_SETTINGS.stackExchangeContentType as string,
+        });
+        this.addTextSetting(stackExchangeDetails, this.titleName(), '', 'stackExchangeNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.stackExchangeNoteTitle as string,
+        });
+        this.addTextareaSetting(stackExchangeDetails, this.noteName(), this.templateDesc(), 'stackExchangeNote');
+        this.addTextareaSetting(
+            stackExchangeDetails,
+            'Stack Exchange answer template',
+            this.templateDesc(),
+            'stackExchangeAnswer',
+        );
+        this.addDownloadImagesSettings(
+            stackExchangeDetails,
+            'downloadStackExchangeAssets',
+            'downloadStackExchangeAssetsInDir',
+        );
+
+        // Pinterest
+        const pinterestDetails = this.createDetailsElement(container, DetailsItem.Pinterest, 'Pinterest');
+        this.addTextSetting(pinterestDetails, this.slugName(), this.templateDesc(), 'pinterestContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.pinterestContentTypeSlug as string,
+        });
+        this.addTextSetting(pinterestDetails, this.titleName(), this.templateDesc(), 'pinterestNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.pinterestNoteTitle as string,
+        });
+        this.addTextareaSetting(pinterestDetails, this.noteName(), this.templateDesc(), 'pinterestNote');
+        this.addDownloadImagesSettings(pinterestDetails, 'downloadPinterestImage', null);
+
+        // Mastodon
+        const mastodonDetails = this.createDetailsElement(container, DetailsItem.Mastodon, 'Mastodon');
+        this.addTextSetting(mastodonDetails, this.slugName(), this.templateDesc(), 'mastodonContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.mastodonContentTypeSlug as string,
+        });
+        this.addTextSetting(mastodonDetails, this.titleName(), this.templateDesc(), 'mastodonNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.mastodonNoteTitle as string,
+        });
+        this.addTextareaSetting(mastodonDetails, this.noteName(), this.templateDesc(), 'mastodonNote');
+        this.addDownloadImagesSettings(
+            mastodonDetails,
+            'downloadMastodonMediaAttachments',
+            'downloadMastodonMediaAttachmentsInDir',
+        );
+        this.addToggleSetting(mastodonDetails, this.t('saveReplies'), this.t('saveRepliesDesc'), 'saveMastodonReplies');
+        this.addTextareaSetting(mastodonDetails, this.t('replyTemplate'), '', 'mastodonReply');
+
+        // Vimeo
+        const vimeoDetails = this.createDetailsElement(container, DetailsItem.Vimeo, 'Vimeo');
+        this.addTextSetting(vimeoDetails, this.slugName(), this.templateDesc(), 'vimeoContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.vimeoContentTypeSlug as string,
+        });
+        this.addTextSetting(vimeoDetails, this.titleName(), this.templateDesc(), 'vimeoNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.vimeoNoteTitle as string,
+        });
+        this.addTextareaSetting(vimeoDetails, this.noteName(), this.templateDesc(), 'vimeoNote');
+        this.addTextSetting(vimeoDetails, this.t('embedWidth'), '', 'vimeoEmbedWidth', {
+            placeholder: DEFAULT_SETTINGS.vimeoEmbedWidth as string,
+        });
+        this.addTextSetting(vimeoDetails, this.t('embedHeight'), '', 'vimeoEmbedHeight', {
+            placeholder: DEFAULT_SETTINGS.vimeoEmbedHeight as string,
+        });
+
+        // Bilibili
+        const bilibiliDetails = this.createDetailsElement(container, DetailsItem.Bilibili, 'Bilibili');
+        this.addTextSetting(bilibiliDetails, this.slugName(), this.templateDesc(), 'bilibiliContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.bilibiliContentTypeSlug as string,
+        });
+        this.addTextSetting(bilibiliDetails, this.titleName(), this.templateDesc(), 'bilibiliNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.bilibiliNoteTitle as string,
+        });
+        this.addTextareaSetting(bilibiliDetails, this.noteName(), this.templateDesc(), 'bilibiliNote');
+        this.addTextSetting(bilibiliDetails, this.t('embedWidth'), '', 'bilibiliEmbedWidth', {
+            placeholder: DEFAULT_SETTINGS.bilibiliEmbedWidth as string,
+        });
+        this.addTextSetting(bilibiliDetails, this.t('embedHeight'), '', 'bilibiliEmbedHeight', {
+            placeholder: DEFAULT_SETTINGS.bilibiliEmbedHeight as string,
+        });
+
+        // TikTok
+        const tikTokDetails = this.createDetailsElement(container, DetailsItem.TikTok, 'TikTok');
+        this.addTextSetting(tikTokDetails, this.slugName(), this.templateDesc(), 'tikTokContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.tikTokContentTypeSlug as string,
+        });
+        this.addTextSetting(tikTokDetails, this.titleName(), this.templateDesc(), 'tikTokNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.tikTokNoteTitle as string,
+        });
+        this.addTextareaSetting(tikTokDetails, this.noteName(), this.templateDesc(), 'tikTokNote');
+        this.addTextSetting(tikTokDetails, this.t('embedWidth'), '', 'tikTokEmbedWidth', {
+            placeholder: DEFAULT_SETTINGS.tikTokEmbedWidth as string,
+        });
+        this.addTextSetting(tikTokDetails, this.t('embedHeight'), '', 'tikTokEmbedHeight', {
+            placeholder: DEFAULT_SETTINGS.tikTokEmbedHeight as string,
+        });
+
+        // Nonreadable article
+        const nonReadableDetails = this.createDetailsElement(
+            container,
+            DetailsItem.NonReadableArticle,
+            'Nonreadable Article',
+        );
+        this.addTextSetting(
+            nonReadableDetails,
+            this.slugName(),
+            this.templateDesc(),
+            'notParseableArticleContentType',
+            {
+                placeholder: DEFAULT_SETTINGS.notParseableArticleContentType as string,
+            },
+        );
+        this.addTextSetting(nonReadableDetails, this.titleName(), this.templateDesc(), 'notParseableArticleNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.notParseableArticleNoteTitle as string,
+        });
+        this.addTextareaSetting(nonReadableDetails, this.noteName(), this.templateDesc(), 'notParsableArticleNote');
+
+        // Text snippet
+        const textSnippetDetails = this.createDetailsElement(container, DetailsItem.TextSnippet, 'Text Snippet');
+        this.addTextSetting(textSnippetDetails, this.slugName(), this.templateDesc(), 'textSnippetContentType', {
+            placeholder: DEFAULT_SETTINGS.textSnippetContentType as string,
+        });
+        this.addTextSetting(textSnippetDetails, this.titleName(), this.templateDesc(), 'textSnippetNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.textSnippetNoteTitle as string,
+        });
+        this.addTextareaSetting(textSnippetDetails, this.noteName(), this.templateDesc(), 'textSnippetNote');
+
+        return container;
+    }
+
+    private createAdvancedSection(): HTMLElement {
+        const container = this.createSectionContainer();
+        const defaults = getDefaultFilesystenLimits();
+
+        const pathRow = this.createSettingRow(
+            this.t('settingsFsLimitPath'),
+            this.t('settingsFsLimitPathDesc').replace('{default}', String(defaults.path)),
+        );
+        const pathInput = document.createElement('input');
+        pathInput.className = 'b3-text-field fn__size200';
+        pathInput.placeholder = String(defaults.path);
+        pathInput.value =
+            this.plugin.settings.filesystemLimitPath == null ? '' : String(this.plugin.settings.filesystemLimitPath);
+        pathInput.addEventListener('change', () => {
+            this.saveNumericSetting('filesystemLimitPath', pathInput.value);
+        });
+        pathRow.appendChild(pathInput);
+        container.appendChild(pathRow);
+
+        const fileNameRow = this.createSettingRow(
+            this.t('settingsFsLimitFileName'),
+            this.t('settingsFsLimitFileNameDesc').replace('{default}', String(defaults.fileName)),
+        );
+        const fileNameInput = document.createElement('input');
+        fileNameInput.className = 'b3-text-field fn__size200';
+        fileNameInput.placeholder = String(defaults.fileName);
+        fileNameInput.value =
+            this.plugin.settings.filesystemLimitFileName == null
+                ? ''
+                : String(this.plugin.settings.filesystemLimitFileName);
+        fileNameInput.addEventListener('change', () => {
+            this.saveNumericSetting('filesystemLimitFileName', fileNameInput.value);
+        });
+        fileNameRow.appendChild(fileNameInput);
+        container.appendChild(fileNameRow);
+
+        return container;
+    }
+
+    // ---------------------------------------------------------------- builders
+
+    private createSectionContainer(): HTMLElement {
+        const container = document.createElement('div');
+        container.style.padding = '8px 16px';
+        return container;
+    }
+
+    private createSettingRow(name: string, description: string): HTMLElement {
+        const row = document.createElement('div');
+        row.className = 'b3-label fn__flex';
+
+        const textBlock = document.createElement('div');
+        textBlock.className = 'fn__flex-1';
+
+        const nameElement = document.createElement('div');
+        nameElement.textContent = name;
+        textBlock.appendChild(nameElement);
+
+        if (description) {
+            const descriptionElement = document.createElement('div');
+            descriptionElement.className = 'b3-label__text';
+            descriptionElement.textContent = description;
+            textBlock.appendChild(descriptionElement);
+        }
+
+        row.appendChild(textBlock);
+        row.appendChild(document.createElement('span')).className = 'fn__space';
+        return row;
+    }
+
+    private addTextSetting(
+        container: HTMLElement,
+        name: string,
+        description: string,
+        settingKey: string,
+        options: { placeholder?: string } = {},
+    ): void {
+        const row = this.createSettingRow(name, description);
+        const input = document.createElement('input');
+        input.className = 'b3-text-field fn__size200';
+        input.placeholder = options.placeholder ?? '';
+        const storedValue = this.plugin.settings[settingKey];
+        input.value = storedValue == null ? '' : String(storedValue);
+        input.addEventListener('change', () => {
+            void this.plugin.saveSetting(settingKey, input.value);
+        });
+        row.appendChild(input);
+        container.appendChild(row);
+    }
+
+    private addTextareaSetting(container: HTMLElement, name: string, description: string, settingKey: string): void {
+        // Stacked layout: title and description above the full-width textarea,
+        // matching how SiYuan renders multiline template settings.
+        const row = document.createElement('div');
+        row.className = 'b3-label';
+
+        const nameElement = document.createElement('div');
+        nameElement.textContent = name;
+        row.appendChild(nameElement);
+
+        if (description) {
+            const descriptionElement = document.createElement('div');
+            descriptionElement.className = 'b3-label__text';
+            descriptionElement.textContent = description;
+            row.appendChild(descriptionElement);
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'b3-text-field fn__block';
+        textarea.rows = 8;
+        textarea.style.marginTop = '4px';
+        const storedValue = this.plugin.settings[settingKey];
+        textarea.value = storedValue == null ? '' : String(storedValue);
+        textarea.addEventListener('change', () => {
+            void this.plugin.saveSetting(settingKey, textarea.value);
+        });
+        row.appendChild(textarea);
+        container.appendChild(row);
+    }
+
+    private addToggleSetting(
+        container: HTMLElement,
+        name: string,
+        description: string,
+        settingKey: string,
+        beforeSave?: (value: boolean) => void,
+    ): void {
+        const row = this.createSettingRow(name, description);
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'b3-switch fn__flex-center';
+        checkbox.checked = this.plugin.settings[settingKey] === true;
+        checkbox.addEventListener('change', () => {
+            beforeSave?.(checkbox.checked);
+            void this.plugin.saveSetting(settingKey, checkbox.checked);
+        });
+        row.appendChild(checkbox);
+        container.appendChild(row);
+    }
+
+    private addSelectSetting(
+        container: HTMLElement,
+        name: string,
+        description: string,
+        settingKey: string,
+        options: { label: string; value: string }[],
+    ): void {
+        const row = this.createSettingRow(name, description);
+        const select = document.createElement('select');
+        select.className = 'b3-select fn__size200';
+        for (const option of options) {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value;
+            optionElement.textContent = option.label;
+            select.appendChild(optionElement);
+        }
+        const storedValue = this.plugin.settings[settingKey];
+        select.value = storedValue == null ? '' : String(storedValue);
+        select.addEventListener('change', () => {
+            void this.plugin.saveSetting(settingKey, select.value);
+        });
+        row.appendChild(select);
+        container.appendChild(row);
+    }
+
+    private addDownloadImagesSettings(
+        container: HTMLElement,
+        mainKey: string,
+        dirKey: string | null,
+        embeddedLabel = false,
+    ): void {
+        const mainLabel = embeddedLabel ? this.t('downloadEmbedded') : this.t('downloadImages');
+        const mainDirLabel = embeddedLabel ? this.t('downloadEmbeddedInDir') : this.t('downloadImagesInDir');
+        const mainDirDesc = embeddedLabel ? this.t('downloadEmbeddedInDirDesc') : this.t('downloadImagesInDirDesc');
+
+        this.addToggleSetting(
+            container,
+            mainLabel,
+            embeddedLabel ? this.t('downloadImagesDesc') : this.t('downloadImagesDesc'),
+            mainKey,
+            (value) => {
+                if (dirKey && value === false) {
+                    this.plugin.settings[dirKey] = false;
+                    void this.plugin.saveSetting(dirKey, false);
+                }
+            },
+        );
+
+        if (dirKey) {
+            this.addToggleSetting(container, mainDirLabel, mainDirDesc, dirKey, (value) => {
+                if (value === true) {
+                    this.plugin.settings[mainKey] = true;
+                    void this.plugin.saveSetting(mainKey, true);
+                }
+            });
+        }
+    }
+
+    private saveNumericSetting(settingKey: string, value: string): void {
+        const trimmedValue = value.trim();
+        if (trimmedValue === '') {
+            void this.plugin.saveSetting(settingKey, null);
+            return;
+        }
+        const numeric = Number(trimmedValue);
+        if (Number.isNaN(numeric)) {
+            return;
+        }
+        void this.plugin.saveSetting(settingKey, numeric);
+    }
+
+    private createDetailsElement(parentElement: HTMLElement, itemId: DetailsItem, title: string): HTMLElement {
+        const details = document.createElement('details');
         details.addEventListener('toggle', () => {
             if (details.open) {
-                this.activeDetatils.push(itemId);
+                this.activeDetails.push(itemId);
             } else {
-                this.activeDetatils = this.activeDetatils.filter((item) => item !== itemId);
+                this.activeDetails = this.activeDetails.filter((item) => item !== itemId);
             }
         });
 
-        if (this.activeDetatils.includes(itemId)) {
+        if (this.activeDetails.includes(itemId)) {
             details.setAttribute('open', '');
         }
 
+        const summary = document.createElement('summary');
+        summary.textContent = title;
+        summary.style.fontWeight = 'bold';
+        summary.style.margin = '12px 0 4px';
+        details.appendChild(summary);
+
+        parentElement.appendChild(details);
         return details;
     }
 
-    private createTemplateVariableReferenceDiv(prepend: string = ''): DocumentFragment {
-        return createHTMLDiv(
-            `<p>${prepend} See the <a href="https://github.com/DominikPieper/obsidian-ReadItLater?tab=readme-ov-file#template-engine">template variables reference</a></p>`,
-        );
+    private slugName(): string {
+        return this.t('contentTypeSlug');
+    }
+
+    private titleName(): string {
+        return this.t('noteTemplateTitle');
+    }
+
+    private noteName(): string {
+        return this.t('noteTemplate');
+    }
+
+    private templateDesc(): string {
+        return this.t('settingsTemplateVarsRef');
     }
 }

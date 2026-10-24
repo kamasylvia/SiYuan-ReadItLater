@@ -77,7 +77,41 @@ export async function parseHtmlContent(content: string) {
         },
     });
 
+    turndownService.addRule('fencedCodeLangFromId', {
+        // Readability strips class attributes, so the language survives only in the
+        // `code-lang-<lang>` id set by the parser DOM optimizations (markdownload trick).
+        filter: (node) => {
+            const firstChild = node.firstChild as HTMLElement | null;
+            return (
+                node.nodeName === 'PRE' &&
+                firstChild != null &&
+                firstChild.nodeName === 'CODE' &&
+                /code-lang-(.+)/.test(firstChild.id ?? '')
+            );
+        },
+        replacement: function (_content, node, options) {
+            const codeElement = node.firstChild as HTMLElement;
+            const language = codeElement.id.match(/code-lang-(.+)/)?.[1] ?? '';
+            const code = codeElement.textContent ?? '';
+            const fenceChar = options.fence.charAt(0);
+            let fenceSize = 3;
+            const fenceInCodeRegex = new RegExp('^' + fenceChar + '{3,}', 'gm');
+            let match;
+            while ((match = fenceInCodeRegex.exec(code))) {
+                if (match[0].length >= fenceSize) {
+                    fenceSize = match[0].length + 1;
+                }
+            }
+            const fence = Array(fenceSize + 1).join(fenceChar);
+            return '\n\n' + fence + language + '\n' + code.replace(/\n$/, '') + '\n' + fence + '\n\n';
+        },
+    });
+
     const articleContent = turndownService.turndown(content);
 
-    return articleContent;
+    // Turndown emits heading anchor links as `[](#anchor)` or — once Readability
+    // resolved them against the <base> href — `[](https://page#anchor)` before the
+    // heading text. Empty-text links are invisible noise; strip them (the lookbehind
+    // keeps `![](image)` intact).
+    return articleContent.replace(/(?<!!)\[\s*\]\([^)]*\)/g, '');
 }

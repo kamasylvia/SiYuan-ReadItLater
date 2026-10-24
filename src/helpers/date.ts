@@ -1,9 +1,9 @@
-import { moment } from 'obsidian';
+import dayjs from 'dayjs';
 
 export function formatCurrentDate(format: string): string {
     return formatDate(new Date(), format);
 }
 
 export function formatDate(date: Date | string, format: string): string {
-    return moment(date).format(format);
+    return dayjs(date).format(format);
 }

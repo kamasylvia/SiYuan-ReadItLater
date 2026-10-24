@@ -1,0 +1,41 @@
+{
+    "name": "siyuan-read-it-later",
+    "author": "Laniakea Kamasylvia",
+    "url": "https://github.com/kamasylvia/SiYuan-ReadItLater",
+    "version": "0.11.4",
+    "minAppVersion": "3.2.0",
+    "backends": [
+        "windows",
+        "linux",
+        "darwin",
+        "docker",
+        "android",
+        "ios",
+        "harmony"
+    ],
+    "frontends": [
+        "desktop",
+        "desktop-window",
+        "mobile",
+        "browser-desktop",
+        "browser-mobile"
+    ],
+    "displayName": {
+        "default": "ReadItLater",
+        "zh_CN": "稍后读"
+    },
+    "description": {
+        "default": "Save online content to your SiYuan workspace, utilize embedded template engine and organize your reading list to your needs. Preserve the web with ReadItLater.",
+        "zh_CN": "将网页内容保存为思源笔记,利用内置模板引擎按需整理你的阅读列表。Preserve the web with ReadItLater."
+    },
+    "readme": {
+        "en_US": "README.md",
+        "zh_CN": "README.md"
+    },
+    "funding": {},
+    "keywords": [
+        "read-it-later",
+        "clipping",
+        "web-clipper"
+    ]
+}

@@ -1,13 +1,20 @@
+import { openTab } from 'siyuan';
 import { Note } from 'src/parsers/Note';
-import { CapacitorAdapter, FileSystemAdapter, Notice, TFile, TFolder, normalizePath } from 'obsidian';
 import ReadItLaterPlugin from 'src/main';
-import { getOsOptimizedPath } from 'src/helpers/fileutils';
 import TemplateEngine from 'src/template/TemplateEngine';
 import { formatDate } from 'src/helpers/date';
+import FileExistsError from 'src/error/FileExists';
 import FileNotFoundError from 'src/error/FileNotFound';
-import FileExistsError from '../error/FileExists';
+import { applyFilesystemLimits, getFileSystemLimits } from 'src/helpers/fileutils';
+import { listNotebooks, postJSON } from 'src/api/kernel';
+import { Notice } from 'src/ui/notice';
 import { VaultRepository } from './VaultRepository';
 
+/**
+ * Persists notes as SiYuan documents through the kernel API.
+ * A note title becomes the last segment of the document human path (hPath),
+ * created inside the notebook and inbox directory configured in settings.
+ */
 export default class DefaultVaultRepository implements VaultRepository {
     private plugin: ReadItLaterPlugin;
     private templateEngine: TemplateEngine;
@@ -17,97 +24,121 @@ export default class DefaultVaultRepository implements VaultRepository {
         this.templateEngine = templateEngine;
     }
 
+    private resolveNotebook(): Promise<string> {
+        const configured = this.plugin.settings.notebook;
+        if (configured) {
+            return Promise.resolve(configured);
+        }
+        return listNotebooks().then((notebooks) => {
+            const open = notebooks.filter((notebook) => !notebook.closed);
+            if (open.length === 0) {
+                throw new Error('No open notebook configured. Set the target notebook in the plugin settings.');
+            }
+            return open[0].id;
+        });
+    }
+
+    private buildDocPath(note: Note): string {
+        const inboxDir = this.plugin.settings.inboxDir
+            ? this.templateEngine
+                  .render(this.plugin.settings.inboxDir, {
+                      date: formatDate(note.createdAt, this.plugin.settings.dateTitleFmt),
+                      fileName: note.fileName,
+                      contentType: note.contentType,
+                  })
+                  .replace(/^\/+|\/+$/g, '')
+            : '';
+
+        const limits = getFileSystemLimits(this.plugin.settings);
+        return applyFilesystemLimits(inboxDir, note.fileName, limits);
+    }
+
     public async saveNote(note: Note): Promise<void> {
-        let filePath;
+        const notebook = await this.resolveNotebook();
+        const docPath = this.buildDocPath(note);
+        note.filePath = docPath;
 
-        if (
-            this.plugin.app.vault.adapter instanceof CapacitorAdapter ||
-            this.plugin.app.vault.adapter instanceof FileSystemAdapter
-        ) {
-            filePath = getOsOptimizedPath(
-                '/',
-                note.getFullFilename(),
-                this.plugin.app.vault.adapter,
-                this.plugin.getFileSystemLimits(),
-            );
-        } else {
-            filePath = normalizePath(`/${note.getFullFilename()}`);
-        }
-
-        if (this.plugin.settings.inboxDir) {
-            const inboxDir = this.templateEngine.render(this.plugin.settings.inboxDir, {
-                date: formatDate(note.createdAt, this.plugin.settings.dateTitleFmt),
-                fileName: note.fileName,
-                contentType: note.contentType,
-            });
-            await this.createDirectory(inboxDir);
-            if (
-                this.plugin.app.vault.adapter instanceof CapacitorAdapter ||
-                this.plugin.app.vault.adapter instanceof FileSystemAdapter
-            ) {
-                filePath = getOsOptimizedPath(
-                    inboxDir,
-                    note.getFullFilename(),
-                    this.plugin.app.vault.adapter,
-                    this.plugin.getFileSystemLimits(),
-                );
-            } else {
-                filePath = normalizePath(`${inboxDir}/${note.getFullFilename()}`);
-            }
-        }
-
-        note.filePath = filePath;
-
-        if (await this.exists(note.filePath)) {
+        if (await this.exists(docPath)) {
             throw new FileExistsError(`${note.getFullFilename()} already exists!`);
-        } else {
-            const newFile = await this.plugin.app.vault.create(note.filePath, note.content);
-            if (this.plugin.settings.openNewNote || this.plugin.settings.openNewNoteInNewTab) {
-                this.plugin.app.workspace
-                    .getLeaf(this.plugin.settings.openNewNoteInNewTab ? 'tab' : false)
-                    .openFile(newFile);
-            }
-            new Notice(`${note.getFullFilename()} created successfully`);
+        }
+
+        const docId = await postJSON<string>('/api/filetree/createDocWithMd', {
+            notebook,
+            path: docPath,
+            markdown: note.content,
+        });
+
+        if (!docId) {
+            throw new Error(`Failed to create document ${docPath}`);
+        }
+
+        note.docId = docId;
+        new Notice(`${note.getFullFilename()} created successfully`);
+
+        if (this.plugin.settings.openNewNote || this.plugin.settings.openNewNoteInNewTab) {
+            await this.openNote(note);
         }
     }
 
-    public async createDirectory(directoryPath: string): Promise<void> {
-        const normalizedPath = normalizePath(directoryPath);
-        const directory = this.plugin.app.vault.getAbstractFileByPath(normalizedPath);
-        if (directory && directory instanceof TFolder) {
-            return;
-        }
-        await this.plugin.app.vault.createFolder(normalizedPath);
-    }
-
-    public async exists(filePath: string): Promise<boolean> {
-        return await this.plugin.app.vault.adapter.exists(filePath);
-    }
-
-    public getFileByPath(filePath: string): TFile {
-        const file = this.plugin.app.vault.getFileByPath(filePath);
-
-        if (file === null) {
-            throw new FileNotFoundError(`File not found: ${filePath}`);
-        }
-
-        return file;
+    public async exists(docPath: string): Promise<boolean> {
+        const notebook = await this.resolveNotebook();
+        const docId = await this.findDocIdByHPath(notebook, docPath);
+        return docId !== null;
     }
 
     public async appendToExistingNote(note: Note): Promise<void> {
-        let file;
-        try {
-            file = this.getFileByPath(note.filePath);
-        } catch (error) {
-            if (error instanceof FileNotFoundError) {
-                new Notice(`Unable to edit ${note.getFullFilename()}`);
-            } else {
-                throw error;
-            }
+        const notebook = await this.resolveNotebook();
+        const docId = await this.resolveDocId(notebook, note);
+        if (!docId) {
+            throw new FileNotFoundError(`Document not found: ${note.filePath}`);
         }
 
-        await this.plugin.app.vault.process(file, (data) => {
-            return `${data}\n\n${note.content}`;
+        await postJSON('/api/block/insertBlock', {
+            dataType: 'markdown',
+            data: note.content,
+            parentID: docId,
         });
+    }
+
+    public async openNote(note: Note): Promise<void> {
+        const notebook = await this.resolveNotebook();
+        let docId = note.docId;
+        if (!docId) {
+            docId = await this.resolveDocId(notebook, note);
+        }
+        if (!docId) {
+            throw new FileNotFoundError(`Document not found: ${note.filePath}`);
+        }
+
+        await openTab({
+            app: this.plugin.app,
+            doc: {
+                id: docId,
+            },
+            openNewTab: this.plugin.settings.openNewNoteInNewTab === true,
+            keepCursor: false,
+        });
+    }
+
+    private async resolveDocId(notebook: string, note: Note): Promise<string | null> {
+        if (note.filePath == null) {
+            return null;
+        }
+        return await this.findDocIdByHPath(notebook, note.filePath);
+    }
+
+    /**
+     * Resolves a document ID from its human path via the SQL index.
+     * Note: `/api/filetree/getHPathByPath` maps storage paths to human paths and
+     * cannot look documents up by hPath, so the SQL index is the reliable source.
+     * The blocks index always stores hPath with a leading slash.
+     */
+    private async findDocIdByHPath(notebook: string, docPath: string): Promise<string | null> {
+        const normalizedPath = docPath.startsWith('/') ? docPath : `/${docPath}`;
+        const escapedPath = normalizedPath.replace(/'/g, "''");
+        const rows = await postJSON<Array<{ id: string }>>('/api/query/sql', {
+            stmt: `SELECT id FROM blocks WHERE type = 'd' AND box = '${notebook}' AND hpath = '${escapedPath}' LIMIT 1`,
+        });
+        return rows && rows.length > 0 ? rows[0].id : null;
     }
 }

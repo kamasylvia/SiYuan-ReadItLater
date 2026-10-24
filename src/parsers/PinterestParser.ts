@@ -1,4 +1,4 @@
-import { request } from 'obsidian';
+import { request } from 'src/api/http';
 import { desktopBrowserUserAgent } from 'src/helpers/networkUtils';
 import { normalizeFilename } from 'src/helpers/fileutils';
 import { replaceImages } from 'src/helpers/replaceImages';

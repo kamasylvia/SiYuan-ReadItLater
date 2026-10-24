@@ -1,16 +1,13 @@
-import { CapacitorAdapter, DataAdapter, FileSystemAdapter, normalizePath, requestUrl } from 'obsidian';
+import { requestUrl } from 'src/api/http';
 import { HTTPS_PROTOCOL, HTTP_PROTOCOL } from 'src/constants/urlProtocols';
 import ReadItLaterPlugin from 'src/main';
-import { FilesystemLimits, getFileExtensionFromMimeType, getOsOptimizedPath, isValidUrl } from './fileutils';
-import { createRandomString } from './stringUtils';
+import { getFileExtensionFromMimeType, isValidUrl } from './fileutils';
 
 type Replacer = {
     (match: string, anchor: string, link: string): Promise<string>;
 };
 
 const EXTERNAL_MEDIA_LINK_PATTERN = /!\[(?<anchor>.*?)\]\((?<link>.+?)\)/g;
-const CREATE_FILENAME_ATTEMPTS = 5;
-const MAX_FILENAME_INDEX = 1000;
 
 export async function replaceImages(
     plugin: ReadItLaterPlugin,
@@ -52,35 +49,19 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
             return match;
         }
         const url = new URL(link);
-        await plugin.getVaultRepository().createDirectory(assetsDir);
 
         try {
             const { fileContent, fileExtension } = await downloadImage(url);
 
-            let attempt = 0;
-            while (attempt < CREATE_FILENAME_ATTEMPTS) {
-                try {
-                    const { fileName, needWrite } = await chooseFileName(
-                        plugin.app.vault.adapter,
-                        plugin.getFileSystemLimits(),
-                        assetsDir,
-                        noteFileName,
-                        fileExtension,
-                    );
-
-                    if (needWrite && fileName !== '') {
-                        await plugin.app.vault.createBinary(fileName, fileContent);
-                        const maskedFilename = fileName.replace(/\s/g, '%20');
-                        return `![${anchor}](${maskedFilename})`;
-                    } else {
-                        return match;
-                    }
-                } catch (error) {
-                    console.warn(error);
-                    attempt++;
-                }
+            if (fileExtension === '') {
+                return match;
             }
-            return match;
+
+            const fileName = `${noteFileName}-${Date.now().toString(36)}${Math.random()
+                .toString(36)
+                .substring(2, 8)}.${fileExtension}`;
+            const assetPath = await uploadAsset(fileName, fileContent, assetsDir);
+            return `![${anchor}](${assetPath})`;
         } catch (error) {
             console.warn(error);
             return match;
@@ -88,42 +69,36 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
     };
 }
 
-async function chooseFileName(
-    dataAdapter: DataAdapter,
-    filesystemLimits: FilesystemLimits,
-    assetsDir: string,
-    noteFileName: string,
-    fileExtension: string,
-): Promise<{ fileName: string; needWrite: boolean }> {
-    if (fileExtension === '') {
-        return { fileName: '', needWrite: false };
+/**
+ * Uploads a downloaded image into the workspace assets directory via the kernel and
+ * returns the markdown-ready asset path (e.g. `assets/20240101-foo.png`).
+ * The kernel creates missing directories and deduplicates file names by itself.
+ */
+async function uploadAsset(fileName: string, fileContent: ArrayBuffer, assetsDir: string): Promise<string> {
+    const file = new File([fileContent], fileName, { type: 'application/octet-stream' });
+    const formData = new FormData();
+    // Kernel contract field is `assetsDirPath`; older kernels used `assetsDir`, send both.
+    const dirPath = assetsDir.startsWith('/') ? assetsDir : `/${assetsDir}`;
+    formData.append('assetsDirPath', dirPath.endsWith('/') ? dirPath : `${dirPath}/`);
+    formData.append('assetsDir', assetsDir.replace(/^\/|\/$/g, ''));
+    formData.append('file[]', file);
+
+    const response = await fetch('/api/asset/upload', {
+        method: 'POST',
+        body: formData,
+    });
+    const result = await response.json();
+
+    if (result.code !== 0) {
+        throw new Error(result.msg || `Asset upload failed for ${fileName}`);
     }
 
-    let needWrite = false;
-    let fileName = '';
-    let index = 0;
-    while (fileName === '' && index < MAX_FILENAME_INDEX) {
-        let suggestedName;
-        if (dataAdapter instanceof CapacitorAdapter || dataAdapter instanceof FileSystemAdapter) {
-            suggestedName = getOsOptimizedPath(
-                assetsDir,
-                `${noteFileName}-${createRandomString(10)}.${fileExtension}`,
-                dataAdapter,
-                filesystemLimits,
-            );
-        } else {
-            suggestedName = `${assetsDir}/${noteFileName}-${createRandomString(10)}.${fileExtension}`;
-        }
-
-        if (!(await dataAdapter.exists(normalizePath(suggestedName), false))) {
-            fileName = suggestedName;
-            needWrite = true;
-        }
-
-        index++;
+    const uploadedPath = result.data?.succMap?.[fileName];
+    if (!uploadedPath) {
+        throw new Error(`Asset upload failed for ${fileName}`);
     }
 
-    return { fileName, needWrite };
+    return uploadedPath;
 }
 
 async function downloadImage(url: URL): Promise<{ fileContent: ArrayBuffer; fileExtension: string }> {

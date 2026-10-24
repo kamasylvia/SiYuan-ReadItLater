@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { Notice } from 'src/ui/notice';
 
 export function handleError(error: Error, noticeMessage: string) {
     new Notice(`${noticeMessage} Check the console output.`);

@@ -18,19 +18,8 @@ const context = await esbuild.context({
 	entryPoints: ["src/main.ts"],
 	bundle: true,
 	external: [
-		"obsidian",
+		"siyuan",
 		"electron",
-		"@codemirror/autocomplete",
-		"@codemirror/collab",
-		"@codemirror/commands",
-		"@codemirror/language",
-		"@codemirror/lint",
-		"@codemirror/search",
-		"@codemirror/state",
-		"@codemirror/view",
-		"@lezer/common",
-		"@lezer/highlight",
-		"@lezer/lr",
 		...builtins],
 	format: "cjs",
 	target: "es2018",
@@ -38,7 +27,7 @@ const context = await esbuild.context({
 	sourcemap: prod ? false : "inline",
 	minify: prod ? true : false,
 	treeShaking: true,
-	outfile: "main.js",
+	outfile: "index.js",
 });
 
 if (prod) {

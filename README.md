@@ -1,26 +1,22 @@
-# ReadItLater Plugin for Obsidian
+# ReadItLater Plugin for SiYuan
+
+A SiYuan note plugin ported from the Obsidian plugin [obsidian-ReadItLater](https://github.com/DominikPieper/obsidian-ReadItLater) by Dominik Pieper.
 
 ## Table of contents
 
 - [Introduction](#introduction)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Template engine](#template-engine)
+- [Inbox directory and assets](#inbox-directory-and-assets)
 - [Content Types](#content-types)
-    - [Website Article](#website-article)
-    - [Youtube](#youtube)
-    - [Youtube Channel](#youtube-channel)
-    - [Twitter](#twitter)
-    - [Bluesky](#bluesky)
-    - [Stack Exchange](#stack-exchange)
-    - [Pinterest](#pinterest)
-    - [Mastodon](#mastodon)
-    - [Vimeo](#vimeo)
-    - [Bilibili](#bilibili)
-    - [TikTok](#tiktok)
-    - [Text Snippet](#text-snippet)
 - [API](#api)
+- [Differences from the Obsidian version](#differences-from-the-obsidian-version)
+- [Development](#development)
 
 ## Introduction
 
-Save the web with ReadItLater plugin for Obsidian. Archive web pages for reading later, referencing in your second brain or for other flexible use case Obsidian provides.
+Save the web with ReadItLater for SiYuan. Archive web pages for reading later, referencing in your second brain or for other flexible use case SiYuan provides.
 
 ReadItLater can do a lot more than converting web pages to markdown. For every content type there is specific template with carefully selected variables to ease up your archiving process.
 
@@ -28,15 +24,21 @@ ReadItLater can do a lot more than converting web pages to markdown. For every c
 
 - Simple, but powerful template engine
 - Carefully selected predefined template variables to straightforward archiving process
-- Compatibility with Obsidian iOS and Android apps
-- Downloading images from articles to your Vault
+- Compatibility with SiYuan desktop, mobile and browser frontends
+- Downloading images from articles to your workspace assets
 - Batch processing of URLs list
 
-### How to use ReadItLater plugin?
+## Installation
 
-To create single note you can either click on the plugin ribbon icon, select `ReadItLater: Create from clipboard` from command palette or click on `ReadItLater` shortcut in context or share menu. You can also create multiple notes from batch of URLs, delimited by selected delimiter in plugin settings using `ReadItLater: Create from batch in clipboard` command.
+Download the latest release package from the release page, then in SiYuan open `Settings - Marketplace` and use `Import plugin` to install the package manually. Enable the plugin afterwards.
 
-If you want just add content to existing note, you can use `ReadItLater: Insert at the cursor position` command to insert content after the current cursor position.
+## Usage
+
+To create a single note, click the ReadItLater icon in the top bar or run the command `Create from clipboard` from the command palette. You can also create multiple notes from a batch of URLs, delimited by the delimiter selected in plugin settings, using the `Create from batch in clipboard` command.
+
+If you want to add content to an existing note, focus the editor and run the command `Insert at the cursor position` to insert content at the current cursor position.
+
+Before saving notes, select the target notebook in the plugin settings (`Settings - Plugins - ReadItLater`). Notes are created as documents inside `Inbox directory` of that notebook; the document title is the rendered note title template.
 
 ## Template engine
 
@@ -59,351 +61,164 @@ Adds quote prefix to each line of value.
 <details>
 <summary>capitalize</summary>
 
-Modifies first character to uppercase and others to lowercase.
-
-```
-{{ 'hello world'|capitalize}}
-
-outputs: Hello world
-```
-</details>
-
-<details>
-<summary>numberLexify</summary>
-
-Converts number to lexified format.
-
-```
-{{ 12682|numberLexify}}
-
-outputs: 12.6K
-```
-</details>
-
-<details>
-<summary>lower</summary>
-
-Converts value to lowercase.
-
-```
-{{ 'Hello World'|lower}}
-
-outputs: hello world
-```
-</details>
-
-<details>
-<summary>replace</summary>
-
-Replaces all occurrences in input value.
-
-```
-{{ 'Hello world'|replace('o') }}
-
-outputs: Hell wrld
-```
+Converts the first letter to uppercase.
 </details>
 
 <details>
 <summary>upper</summary>
 
-Converts value to uppercase.
-
-```
-{{ 'Hello World'|upper}}
-
-outputs: HELLO WORLD
-```
+Converts all letters to uppercase.
 </details>
 
-## Inbox and Assets directories
+<details>
+<summary>lower</summary>
 
-You can use template variables in `Inbox dir` and `Assets dir` settings to better distribute content in your Vault.
+Converts all letters to lowercase.
+</details>
+
+<details>
+<summary>replace(search, replacement)</summary>
+
+Replaces all occurrences of `search` in value with `replacement`.
+</details>
+
+<details>
+<summary>join(separator)</summary>
+
+Joins an array of strings into a single string separated by `separator`.
+</details>
+
+<details>
+<summary>striptags</summary>
+
+Removes HTML tags from value.
+</details>
+
+<details>
+<summary>map(key)</summary>
+
+Extracts `key` from each object in an array, producing an array of extracted values.
+</details>
+
+<details>
+<summary>numberLexify</summary>
+
+Formats numbers lexically: `1234567` becomes `1.2M`.
+</details>
+
+### Loops
+
+Templates can iterate arrays:
+
+```
+{% for chapter in videoChapters %}
+{{ chapter }}
+{% endfor %}
+```
+
+## Inbox directory and assets
+
+You can use template variables in `Inbox directory` and `Assets directory` settings to better distribute content in your workspace.
 
 | Directory template variable | Description                                        |
 | --------------------------- | -------------------------------------------------- |
-| date                        | Current date in format from plguin settins         |
-| fileName                    | Filename of new note                               |
-| contentType                 | Slug of detected content type from plugin settings |
+| date                        | Current date in format from plugin settings         |
+| fileName                    | Title of new note                                   |
+| contentType                 | Slug of detected content type from plugin settings  |
+
+Downloaded images are uploaded into the workspace assets directory (default `assets`). The kernel creates missing directories automatically, so nested template paths such as `assets/ReadItLater/{{ date }}` work as well.
 
 ## Content Types
 
-Structure of note content is determined by URL. Currenty plugin supports saving content of websites and embedding content from multiple services. Each content type has title and note template with replacable variables, which can be edited in plugin settings.
+Structure of note content is determined by URL. Currently the plugin supports saving content of websites and embedding content from multiple services. Each content type has a title and note template with replaceable variables, which can be edited in plugin settings.
 
 Available content types are ordered by URL detection priority.
 
 ### Website Article
 
-Will be parsed to readable form using [Mozilla Readability](https://github.com/mozilla/readability) and then converted to markdown. In case website content is marked by [Readbility](https://github.com/mozilla/readability) as not readable, empty note with URL will be created.
+Will be parsed to readable form using [Mozilla Readability](https://github.com/mozilla/readability) and then converted to markdown. In case website content is marked by [Readability](https://github.com/mozilla/readability) as not readable, an empty note with the URL will be created.
 
-If enabled, images will be downloaded to folder (default is `ReadItLater Inbox/assets`) configured in plugin settings. (Supported only on desktop for now)
-
-| Title template variable | Description                                 |
-| ------------------------| ----------------------------------------    |
-| title                   | Article title from `<title>` HTML tag       |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                                                                                                                                                               |
-|---------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| articleTitle              | Article title from `<title>` HTML tag                                                                                                                                                     |
-| articleURL                | Article URL                                                                                                                                                                               |
-| articleReadingTime        | Estimated reading time in minutes by Readbility.js                                                                                                                                        |
-| articleContent            | Article content                                                                                                                                                                           |
-| date                      | Current date in format from plugin settings                                                                                                                                               |
-| previewURL                | Aritlce preview image URL parsed from [OpenGraph](https://ogp.me/) or [Twitter](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup) image `<meta>` property |
-| publishedTime             | Article publish time parsed from [OpenGraph](https://ogp.me/) `<meta>` property or [Schema.org](https://schema.org/) JSON and formatted in content format from plugin settings            |
+If enabled, images will be downloaded to the assets directory configured in plugin settings.
 
 ### Youtube
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| title                   | Video title                                 |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                                          |
-| ------------------------- | -------------------------------------------------------------------- |
-| videoTitle                | Video title                                                          |
-| date                      | Current date in format from plugin settings                          |
-| videoDescription          | Video description                                                    |
-| videoURL                  | Video URL on Youtube.com                                             |
-| videoId                   | Video ID                                                             |
-| videoPlayer               | Embeded player generated by plugin                                   |
-| channelId                 | Channel ID                                                           |
-| channelName               | Channel name                                                         |
-| channelURL                | Channel URL on Youtube.com                                           |
-| videoThumbnail            | Video thumbnail image URL                                            |
-| videoChapters             | List of video chapters with linked timestamps                        |
-| videoPublishDate          | Video plublish date formatted in content format from plugin settings |
-| videoViewsCount           | Video views count                                                    |
-
-| Chapter template variable | Description                   |
-| ------------------------- | ----------------------------- |
-| chapterTitle              | Chapter title                 |
-| chapterTimestamp          | Chapter start time in mm:ss   |
-| chapterSeconds            | Chapter start time in seconds |
-| chapterUrl                | Url to chapter start          |
-
-Parsing of HTML DOM has its limitations thus additional data can be fetched only from [Google API](https://developers.google.com/youtube/v3/getting-started). Retrieved API key can be set in plugin settings and then plugin will use the Google API for fetching data.
-
-| Content template variable | Description                                                          |
-| ------------------------- | -------------------------------------------------------------------- |
-| videoDuration             | Video duration in seconds                                            |
-| videoDurationFormatted    | Formatted video duration (1h 25m 23s)                                |
-| videoTags                 | Formatted list of tags delimited by space                            |
+Embeds the video player; with a configured Youtube Data API v3 key it also fetches metadata, chapters and more.
 
 ### Youtube Channel
 
-| Title template variable | Description                                  |
-| ----------------------- | -------------------------------------------- |
-| title                   | Channel title.                               |
-| date                    | Current date in format from plugin settings. |
+Saves channel title, avatar, videos URL and subscribers count. Requires a Youtube Data API v3 key.
 
-| Content template variable | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| date                      | Current date in format from plugin settings.         |
-| channelId                 | Channel ID.                                          |
-| channelTitle              | Channel title.                                       |
-| channelDescription        | Channel description.                                 |
-| channelURL                | Channel URL on Youtube.com.                          |
-| channelAvatar             | URL of channel's avatar (thumbnail) image.           |
-| channelBanner             | URL of channel's banner image.                       |
-| channelSubscribersCount   | The number of subscribers that the channel has.      |
-| channelVideosCount        | The number of public videos uploaded to the channel. |
-| channelVideosURL          | URL to channel's videos on Youtube.com               |
-| channelShortsURL          | URL to channel's shorts on Youtube.com               |
+### Twitter / X.com
 
-### X.com (Twitter)
-
-Parser use [X Publish API](https://publish.twitter.com/) to fetch data.
-
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| tweetAuthorName         | Post author name                            |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                                        |
-| ------------------------- | ------------------------------------------------------------------ |
-| tweetAuthorName           | Post author name                                                   |
-| date                      | Current date in format from plugin settings                        |
-| tweetURL                  | Post URL on X.com                                                  |
-| tweetContent              | Post content                                                       |
-| tweetPublishDate          | Post publish date formatted in content format from plugin settings |
+Saves tweet content as markdown.
 
 ### Bluesky
 
-Parser fetch the content from Bluesky API.
-
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| authorHandle            | Post author handle                          |
-| authorName              | Post author name                            |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                                                     |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| date                      | Current date in format from plugin settings                                     |
-| content                   | Formatted post content with embedded content. If enabled, replies are appended. |
-| postURL                   | Post URL                                                                        |
-| authorHandle              | Post author handle                                                              |
-| authorName                | Post author name                                                                |
-| likeCount                 | Post like count                                                                 |
-| replyCount                | Post reply count                                                                |
-| repostCount               | Post repost count                                                               |
-| quouteCount               | Post quote count                                                                |
-| publishedAt               | Post publish time                                                               |
-
-If enabled in plugin settings, you can fetch also replies.
-
-***Reply template variable***
-
-| Content template variable | Description                                   |
-| ------------------------- | --------------------------------------------- |
-| date                      | Current date in format from plugin settings   |
-| content                   | Formatted post content with embedded content. |
-| postURL                   | Reply URL                                     |
-| authorHandle              | Reply author handle                           |
-| authorName                | Reply author name                             |
-| likeCount                 | Reply like count                              |
-| replyCount                | Reply reply count                             |
-| repostCount               | Reply repost count                            |
-| quouteCount               | Reply quote count                             |
-| publishedAt               | Reply publish time                            |
+Saves post content and optionally embedded content and replies.
 
 ### Stack Exchange
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| title                   | Question title                              |
-| date                    | Current date in format from plugin settings |
-
-***Note template variables***
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| date                      | Current date in format from plugin settings |
-| questionTitle             | Question title                              |
-| questionURL               | Question URL on selected StackExchange site |
-| questionContent           | Question content                            |
-| authorName                | Question author name                        |
-| authorProfileURL          | Question author profile URL                 |
-| topAnswer                 | Formatted first answer                      |
-| answers                   | Formatted other answers                     |
-
-***Answer template variables***
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| date                      | Current date in format from plugin settings |
-| answerContent             | Answer content                              |
-| authorName                | Answer author name                          |
-| authorProfileURL          | Answer author profile URL                   |
+Saves the question, the top answer and remaining answers.
 
 ### Pinterest
 
-| Title template variable | Description                                  |
-| ----------------------- | -------------------------------------------- |
-| authorName              | Pin author name                              |
-| date                    | Current date in format from plugin settings. |
-
-| Content template variable | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| date                      | Current date in format from plugin settings.         |
-| pinId                     | Pin ID.                                              |
-| pinURL                    | URL of pin.                                          |
-| title                     | Pin title.                                           |
-| link                      | Pin link.                                            |
-| image                     | URL of pin image.                                    |
-| description               | Pin description.                                     |
-| likeCount                 | Pin like count.                                      |
-| authorName                | Pin author name.                                     |
-| authorProfileURL          | URL of Pin author page.                              |
+Saves the pin image and description.
 
 ### Mastodon
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| tootAuthorName          | Status author name                          |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| tootAuthorName            | Status author name                          |
-| date                      | Current date in format from plugin settings |
-| tootURL                   | Status URL on selected Mastodon instance    |
-| tootContent               | Status content                              |
-
-If enabled in plugin settings, you can fetch also replies.
-
-***Reply template variable***
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| tootAuthorName            | Reply author name                           |
-| tootURL                   | Reply URL on selected Mastodon instance     |
-| tootContent               | Reply content                               |
+Saves toot content and optionally media attachments and replies.
 
 ### Vimeo
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| title                   | Video title                                 |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| videoTitle                | Video title                                 |
-| date                      | Current date in format from plugin settings |
-| videoURL                  | Video URL on Vimeo.com                      |
-| videoId                   | Video ID                                    |
-| videoPlayer               | Embeded player generated by plugin          |
-| channelName               | Channel name                                |
-| channelURL                | Channel URL on Vimeo.com                    |
+Embeds the video player and video chapters.
 
 ### Bilibili
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| title                   | Video title                                 |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| videoTitle                | Video title                                 |
-| date                      | Current date in format from plugin settings |
-| videoURL                  | Video URL on Bilibili.com                   |
-| videoId                   | Video ID                                    |
-| videoPlayer               | Embeded player generated by plugin          |
+Embeds the video player.
 
 ### TikTok
 
-| Title template variable | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| authorName              | Video author name                           |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| videoDescription          | Video description                           |
-| date                      | Current date in format from plugin settings |
-| videoURL                  | Video URL on TikTok.com                     |
-| videoId                   | Video ID                                    |
-| videoPlayer               | Embeded player generated by plugin          |
-| authorName                | Author name                                 |
-| authorURL                 | Author profile URL on TikTok.com            |
+Saves video description and embeds the player.
 
 ### Text Snippet
 
-If your clipboard content is not recognized by any of above parsers plugin will create note with unformatted clipboard content.
-
-| Title template variable | Description                                 |
-| ------------------------| ------------------------------------------- |
-| date                    | Current date in format from plugin settings |
-
-| Content template variable | Description                                 |
-| ------------------------- | ------------------------------------------- |
-| content                   | Clipboard content                           |
-| date                      | Current date in format from plugin settings |
+Fallback for non-URL clipboard content: saves the raw clipboard text as a note.
 
 ## API
 
-To invoke functionality from other plugins we provide an API. You can access it via `this.app.plugins.plugins['obsidian-read-it-later'].api` which is an instance of `ReadItLaterAPI` class defined in [src/ReadItLaterApi.ts](https://github.com/DominikPieper/obsidian-ReadItLater/blob/master/src/ReadItLaterApi.ts).
+To invoke functionality from other plugins you can access the API via:
+
+```ts
+const readItLater = siyuan.ws.app.plugins.find((p) => p.name === 'siyuan-read-it-later');
+await readItLater.api.processContent('https://example.com/some-article');
+```
+
+`api` is an instance of the `ReadItLaterApi` class defined in [src/ReadtItLaterApi.ts](src/ReadtItLaterApi.ts) providing:
+
+- `processContent(content: string)` — create a single note
+- `processContentBatch(contentBatch: string)` — create multiple notes from a delimited list
+- `insertContentAtEditorCursorPosition(content: string, protyle: IProtyle)` — insert at cursor
+
+## Differences from the Obsidian version
+
+- Notes are stored as SiYuan documents (kernel API) instead of plain markdown files; the note title becomes the document title.
+- A target notebook must be selected in settings before notes can be saved.
+- The `extendShareMenu` setting and the share menu / link context menu entries have no SiYuan equivalent and were removed.
+- Web requests are routed through the SiYuan kernel forward proxy, which avoids CORS issues on every frontend.
+- Image download works on all frontends (desktop, mobile, browser), not only on desktop.
+- Date formatting uses dayjs instead of moment; format strings from the Obsidian version remain compatible.
+
+## Development
+
+```bash
+npm install
+npm run dev      # development build with watch mode
+npm run build    # production build (index.js)
+npm run lint     # ESLint with auto-fix
+```
+
+The build output is a single `index.js` bundled by esbuild in CommonJS format, loaded by SiYuan together with `plugin.json`, `index.css` and the `i18n/` language files (a root `i18n.json` is kept for older SiYuan releases). `npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md` produces the installable package. To try the plugin locally, unzip it into `<workspace>/data/plugins/siyuan-read-it-later/` and reload the SiYuan interface.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Original Obsidian plugin by Dominik Pieper; the SiYuan port keeps the same license.

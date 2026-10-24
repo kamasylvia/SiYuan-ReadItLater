@@ -1,4 +1,5 @@
-import { moment, request } from 'obsidian';
+import { request } from 'src/api/http';
+import dayjs from 'dayjs';
 import { Parser } from './Parser';
 import { Note } from './Note';
 import { parseHtmlContent } from './parsehtml';
@@ -61,7 +62,7 @@ class TwitterParser extends Parser {
     private getPublishedDateFromDOM(html: string): string {
         const dom = new DOMParser().parseFromString(html, 'text/html');
         const dateElement = dom.querySelector('blockquote > a');
-        const date = moment(dateElement?.textContent ?? '');
+        const date = dayjs(dateElement?.textContent ?? '');
 
         return date.isValid() ? date.format(this.plugin.settings.dateContentFmt) : '';
     }

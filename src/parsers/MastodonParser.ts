@@ -1,4 +1,4 @@
-import { Platform, request } from 'obsidian';
+import { request } from 'src/api/http';
 import { isValidUrl, normalizeFilename } from 'src/helpers/fileutils';
 import { replaceImages } from 'src/helpers/replaceImages';
 import { handleError } from 'src/helpers/error';
@@ -166,10 +166,9 @@ class MastodonParser extends Parser {
     private async parseStatus(status: Status, fileName: string, assetsDir: string): Promise<string> {
         const parsedStatusContent = await parseHtmlContent(status.content);
 
-        const mediaAttachments =
-            this.plugin.settings.downloadMastodonMediaAttachments && Platform.isDesktop
-                ? await replaceImages(this.plugin, fileName, this.prepareMedia(status.media_attachments), assetsDir)
-                : this.prepareMedia(status.media_attachments);
+        const mediaAttachments = this.plugin.settings.downloadMastodonMediaAttachments
+            ? await replaceImages(this.plugin, fileName, this.prepareMedia(status.media_attachments), assetsDir)
+            : this.prepareMedia(status.media_attachments);
 
         return parsedStatusContent.concat(mediaAttachments);
     }

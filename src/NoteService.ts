@@ -1,4 +1,4 @@
-import { Editor, Notice } from 'obsidian';
+import { IProtyle } from 'siyuan';
 import ParserCreator from './parsers/ParserCreator';
 import { VaultRepository } from './repository/VaultRepository';
 import { Note } from './parsers/Note';
@@ -7,6 +7,7 @@ import FileExistsAsk from './modal/FileExistsAsk';
 import { FileExistsStrategy } from './enums/fileExistsStrategy';
 import ReadItLaterPlugin from './main';
 import { getAndCheckUrls } from './helpers/stringUtils';
+import { Notice } from './ui/notice';
 
 export class NoteService {
     constructor(
@@ -46,9 +47,9 @@ export class NoteService {
         }
     }
 
-    public async insertContentAtEditorCursorPosition(content: string, editor: Editor): Promise<void> {
+    public async insertContentAtEditorCursorPosition(content: string, protyle: IProtyle): Promise<void> {
         const note = await this.makeNote(content);
-        editor.replaceRange(note.content, editor.getCursor());
+        protyle.getInstance().insert(note.content, true);
     }
 
     private async makeNote(content: string): Promise<Note> {
@@ -61,13 +62,10 @@ export class NoteService {
         }
     }
 
-    private openNote(note: Note): void {
+    private async openNote(note: Note): Promise<void> {
         if (this.plugin.settings.openNewNote || this.plugin.settings.openNewNoteInNewTab) {
             try {
-                const file = this.repository.getFileByPath(note.filePath);
-                this.plugin.app.workspace
-                    .getLeaf(this.plugin.settings.openNewNoteInNewTab ? 'tab' : false)
-                    .openFile(file);
+                await this.repository.openNote(note);
             } catch (error) {
                 console.error(error);
                 new Notice(`Unable to open ${note.getFullFilename()}`);
@@ -78,9 +76,9 @@ export class NoteService {
     private async handleFileExistsError(notes: Note[]): Promise<void> {
         switch (this.plugin.settings.fileExistsStrategy) {
             case FileExistsStrategy.Ask:
-                new FileExistsAsk(this.plugin.app, notes, (strategy, doNotAskAgain) => {
+                new FileExistsAsk(notes, (strategy, doNotAskAgain) => {
                     this.handleFileAskModalResponse(strategy, doNotAskAgain, notes);
-                }).open();
+                });
                 break;
             case FileExistsStrategy.Nothing:
                 this.handleFileExistsStrategyNothing(notes);
@@ -101,7 +99,7 @@ export class NoteService {
                 this.handleFileExistsStrategyNothing(notes);
                 break;
             case FileExistsStrategy.AppendToExisting:
-                this.handleFileExistsStrategyAppend(notes);
+                await this.handleFileExistsStrategyAppend(notes);
                 break;
         }
 

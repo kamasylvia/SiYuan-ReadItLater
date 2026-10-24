@@ -1,4 +1,3 @@
-import { CapacitorAdapter, FileSystemAdapter, Platform, normalizePath } from 'obsidian';
 import { ReadItLaterSettings } from 'src/settings';
 import mime from 'mime';
 
@@ -38,12 +37,13 @@ export function normalizeFilename(fileName: string, preserveUnicode: boolean = t
     );
 }
 
-export function getOsOptimizedPath(
-    path: string,
-    fileName: string,
-    dataAdapter: CapacitorAdapter | FileSystemAdapter,
-    filesystemLimits: FilesystemLimits,
-): string {
+/**
+ * Joins a directory path and file name, truncating the file name and the full path
+ * to the configured limits. SiYuan document titles live in the database, but they
+ * are surfaced as file paths in the doc tree, sync layer and export, so the same
+ * sanity limits as the Obsidian version are kept.
+ */
+export function applyFilesystemLimits(path: string, fileName: string, filesystemLimits: FilesystemLimits): string {
     const fileExtension = `.${getFileExtension(fileName)}`;
 
     let optimizedFileName = fileName;
@@ -52,21 +52,21 @@ export function getOsOptimizedPath(
             optimizedFileName.substring(0, filesystemLimits.fileName - fileExtension.length) + `${fileExtension}`;
     }
 
-    let optimizedFilePath = normalizePath(`${path}/${optimizedFileName}`);
-    const fullPath = dataAdapter.getFullPath(optimizedFilePath);
-    if (fullPath.length > filesystemLimits.path) {
-        optimizedFilePath =
-            optimizedFilePath.substring(
-                0,
-                optimizedFilePath.length - (fullPath.length - filesystemLimits.path) - fileExtension.length,
-            ) + `${fileExtension}`;
+    let optimizedFilePath = path ? `${path}/${optimizedFileName}` : optimizedFileName;
+    if (optimizedFilePath.length > filesystemLimits.path) {
+        optimizedFilePath = optimizedFilePath.substring(0, optimizedFilePath.length - fileExtension.length);
+        const pathOverflow = optimizedFilePath.length + fileExtension.length - filesystemLimits.path;
+        if (pathOverflow > 0) {
+            optimizedFilePath = optimizedFilePath.substring(0, optimizedFilePath.length - pathOverflow);
+        }
+        optimizedFilePath = optimizedFilePath + fileExtension;
     }
 
     return optimizedFilePath;
 }
 
-export function getFileSystemLimits(platform: typeof Platform, settings: ReadItLaterSettings): FilesystemLimits {
-    const defaultFilesystenLimits = getDefaultFilesystenLimits(platform);
+export function getFileSystemLimits(settings: ReadItLaterSettings): FilesystemLimits {
+    const defaultFilesystenLimits = getDefaultFilesystenLimits();
 
     return {
         path: settings.filesystemLimitPath ?? defaultFilesystenLimits.path,
@@ -74,15 +74,8 @@ export function getFileSystemLimits(platform: typeof Platform, settings: ReadItL
     };
 }
 
-export function getDefaultFilesystenLimits(platform: typeof Platform): FilesystemLimits {
-    if (platform.isLinux) {
-        return createFilesystemLimits(4096, 255);
-    }
-    if (platform.isMacOS || platform.isIosApp || platform.isAndroidApp || platform.isMobile) {
-        return createFilesystemLimits(1024, 255);
-    }
-
-    return createFilesystemLimits(256, 256);
+export function getDefaultFilesystenLimits(): FilesystemLimits {
+    return createFilesystemLimits(1024, 255);
 }
 
 export function getFileExtension(fileName: string): string {

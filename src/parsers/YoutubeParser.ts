@@ -1,4 +1,5 @@
-import { moment, request } from 'obsidian';
+import { request } from 'src/api/http';
+import dayjs from 'dayjs';
 import { Duration, parse, toSeconds } from 'iso8601-duration';
 import { handleError } from 'src/helpers/error';
 import { getJavascriptDeclarationByName } from 'src/helpers/domUtils';
@@ -120,7 +121,7 @@ class YoutubeParser extends Parser {
                 videoPlayer: this.getEmbedPlayer(video.id),
                 videoDuration: toSeconds(duration),
                 videoDurationFormatted: this.formatDuration(duration),
-                videoPublishDate: moment(video.snippet.publishedAt).format(this.plugin.settings.dateContentFmt),
+                videoPublishDate: dayjs(video.snippet.publishedAt).format(this.plugin.settings.dateContentFmt),
                 videoViewsCount: video.statistics.viewCount,
                 videoTags: tags.join(' '),
                 videoChapters: this.formatVideoChapters(video.id, chapters),
@@ -129,7 +130,7 @@ class YoutubeParser extends Parser {
                 channelName: channel.snippet.title ?? '',
                 extra: {
                     thumbnails: video.snippet.thumbnails,
-                    publishedAt: moment(video.snippet.publishedAt).toDate(),
+                    publishedAt: dayjs(video.snippet.publishedAt).toDate(),
                     tags: tags,
                     channel: {
                         thumbnails: channel.snippet.thumbnails,
@@ -194,7 +195,7 @@ class YoutubeParser extends Parser {
                 videoDuration: 0,
                 videoDurationFormatted: '',
                 videoPublishDate:
-                    publishedAt !== '' ? moment(publishedAt).format(this.plugin.settings.dateContentFmt) : '',
+                    publishedAt !== '' ? dayjs(publishedAt).format(this.plugin.settings.dateContentFmt) : '',
                 videoViewsCount: videoViewsCount,
                 videoTags: '',
                 videoChapters: this.formatVideoChapters(videoId, chapters),

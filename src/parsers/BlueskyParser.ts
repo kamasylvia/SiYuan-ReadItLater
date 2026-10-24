@@ -1,4 +1,6 @@
-import { Notice, moment, request } from 'obsidian';
+import { request } from 'src/api/http';
+import { Notice } from 'src/ui/notice';
+import dayjs from 'dayjs';
 import { normalizeFilename } from 'src/helpers/fileutils';
 import { replaceImages } from 'src/helpers/replaceImages';
 import { handleError } from 'src/helpers/error';
@@ -196,7 +198,7 @@ export class BlueskyParser extends Parser {
                     replyCount: reply.post.replyCount,
                     repostCount: reply.post.repostCount,
                     quoteCount: reply.post.replyCount,
-                    publishedAt: moment(reply.post.record.createdAt).toDate(),
+                    publishedAt: dayjs(reply.post.record.createdAt).toDate(),
                     facets:
                         reply.post.record?.facets?.map((facet: any) => {
                             return this.makeFacet(facet);
@@ -215,7 +217,7 @@ export class BlueskyParser extends Parser {
                 replyCount: response.thread.post.replyCount,
                 repostCount: response.thread.post.repostCount,
                 quoteCount: response.thread.post.replyCount,
-                publishedAt: moment(response.thread.post.record.createdAt).toDate(),
+                publishedAt: dayjs(response.thread.post.record.createdAt).toDate(),
                 facets:
                     response.thread.post.record?.facets?.map((facet: any) => {
                         return this.makeFacet(facet);
