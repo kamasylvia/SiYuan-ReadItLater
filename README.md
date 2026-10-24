@@ -141,6 +141,8 @@ Enable **Use image bed** in the settings, then fill in:
 
 Resources whose extension matches a selected category (or one of the custom extensions) are uploaded to the image bed and referenced by its returned URL; everything else keeps the local-assets behavior. WeChat-style URLs without a path extension (`?wx_fmt=png`) are recognized too.
 
+Uploaded links are deduplicated: the source URL → link mapping is persisted in the plugin storage (`imgbed-links.json`), so re-clipping the same article reuses the stored links instead of uploading duplicate files to the image bed. If you switch to a different image bed, clear that storage file (`data/storage/petal/siyuan-read-it-later/imgbed-links.json`) so old links stop being reused.
+
 ## Content Types
 
 Structure of note content is determined by URL. Currently the plugin supports saving content of websites and embedding content from multiple services. Each content type has a title and note template with replaceable variables, which can be edited in plugin settings.

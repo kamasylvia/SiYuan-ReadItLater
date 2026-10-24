@@ -28,6 +28,8 @@ import { Notice } from './ui/notice';
 export default class ReadItLaterPlugin extends Plugin {
     public api: ReadItLaterApi;
     public settings: ReadItLaterSettings;
+    /** Image bed link dedup map: source resource URL -> uploaded link. */
+    public imageBedLinks: Record<string, string> = {};
 
     private fileSystemLimits: FilesystemLimits;
     private noteService: NoteService;
@@ -127,6 +129,29 @@ export default class ReadItLaterPlugin extends Plugin {
             console.warn('ReadItLater: stored settings are unreadable, falling back to defaults', error);
         }
         this.settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings ?? {});
+
+        // Persisted image bed links (source URL -> uploaded link) so re-clipping the
+        // same article reuses the stored links instead of uploading duplicates.
+        this.imageBedLinks = {};
+        try {
+            const storedLinks = await this.loadData('imgbed-links.json');
+            if (storedLinks && typeof storedLinks === 'object' && !Array.isArray(storedLinks)) {
+                this.imageBedLinks = storedLinks as Record<string, string>;
+            } else if (typeof storedLinks === 'string' && storedLinks.trim() !== '') {
+                this.imageBedLinks = JSON.parse(storedLinks);
+            }
+        } catch (error) {
+            console.warn('ReadItLater: stored image bed links are unreadable, starting fresh', error);
+        }
+    }
+
+    /** Persists the image bed link dedup map (source URL -> uploaded link). */
+    async persistImageBedLinks(): Promise<void> {
+        try {
+            await this.saveData('imgbed-links.json', this.imageBedLinks);
+        } catch (error) {
+            console.warn('ReadItLater: failed to persist image bed links', error);
+        }
     }
 
     async saveSetting(setting: string, value: ReadItLaterSettingValue): Promise<void> {

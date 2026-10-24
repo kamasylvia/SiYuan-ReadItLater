@@ -53,12 +53,21 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
 
         try {
             // Image bed enabled and the resource matches the selected categories:
-            // upload it there; on failure fall through to the workspace assets.
+            // reuse the persisted link when this source URL was uploaded before
+            // (re-clipping must not duplicate files on the image bed); upload it
+            // otherwise; on failure fall through to the workspace assets.
             if (shouldUploadToImageBed(link, plugin)) {
+                const cachedLink = plugin.imageBedLinks[link];
+                if (cachedLink) {
+                    return `![${anchor}](${cachedLink})`;
+                }
+
                 const { fileContent, status } = await downloadImage(url);
                 if (status < 400) {
                     const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(link), fileContent);
                     if (remoteUrl) {
+                        plugin.imageBedLinks[link] = remoteUrl;
+                        void plugin.persistImageBedLinks();
                         return `![${anchor}](${remoteUrl})`;
                     }
                 }
