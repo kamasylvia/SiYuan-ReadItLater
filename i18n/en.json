@@ -92,5 +92,11 @@
     "settingsImageBedCheckDesc": "Upload a probe file to verify the image bed is reachable.",
     "imgbedCheckButton": "Test",
     "dockTitle": "Read It Later",
-    "dockDesc": "Clip web content from the clipboard into your inbox notebook."
+    "dockDesc": "Clip web content from the clipboard into your inbox notebook.",
+    "pasteFallbackTitle": "Clip: manual paste",
+    "pasteFallbackDesc": "The clipboard cannot be read automatically in this context. Paste your content below (Ctrl/Cmd+V) and click Clip.",
+    "pasteFallbackError": "Reason: {error}",
+    "pasteFallbackPlaceholder": "Paste URL or text here...",
+    "pasteFallbackCancel": "Cancel",
+    "pasteFallbackClip": "Clip"
 }

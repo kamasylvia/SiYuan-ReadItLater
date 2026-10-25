@@ -1,4 +1,4 @@
-import { Plugin, Custom as SiYuanCustom } from 'siyuan';
+import { Dialog, Plugin, Custom as SiYuanCustom } from 'siyuan';
 import { showMessage } from 'siyuan';
 
 declare global {
@@ -242,24 +242,117 @@ export default class ReadItLaterPlugin extends Plugin {
      * Shows the localized error notice only when both paths fail.
      */
     async getTextClipboardContent(): Promise<string> {
-        try {
-            return await navigator.clipboard.readText();
-        } catch (navigatorError) {
-            console.warn('ReadItLater: navigator.clipboard unavailable, trying the Electron clipboard', navigatorError);
+        const result = await this.readClipboardText();
+        if (result.errorName) {
+            new Notice(
+                `${String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.')} [${result.errorName}]`,
+            );
+            this.openPasteFallbackDialog(result.errorName);
+            return '';
+        }
+        return result.text;
+    }
+
+    /**
+     * Clipboard read with a fallback chain:
+     * 1. `navigator.clipboard.readText()` — requires document focus + a granted
+     *    clipboard-read permission; this is the flaky path when the user switches
+     *    from another app and clicks the dock icon right away.
+     * 2. one retry after the focus settles (300ms).
+     * 3. Electron native clipboard via `window.require('electron')` — the desktop
+     *    renderer runs with node integration per app/electron/window.js, no
+     *    permission gate; skipped on browser/mobile frontends.
+     * When everything fails, returns the error name and opens the manual paste
+     * dialog — the paste event carries the clipboard natively and always works.
+     */
+    private async readClipboardText(): Promise<{ text: string; errorName?: string }> {
+        let errorName = 'Unknown';
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                return { text: await navigator.clipboard.readText() };
+            } catch (error) {
+                errorName = (error as Error)?.name ?? 'Unknown';
+                console.warn(`ReadItLater: navigator.clipboard read failed (attempt ${attempt + 1})`, error);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
         try {
             const electron = window.require?.('electron') as { clipboard?: { readText?: () => string } } | undefined;
             const text = electron?.clipboard?.readText?.();
             if (typeof text === 'string') {
-                return text;
+                return { text };
             }
+            errorName = 'ElectronClipboardUnavailable';
         } catch (error) {
             console.warn('ReadItLater: Electron clipboard unavailable', error);
         }
+        return { text: '', errorName };
+    }
 
-        new Notice(String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.'));
-        return '';
+    /**
+     * Manual paste fallback: when the clipboard cannot be read programmatically,
+     * open a dialog where the user pastes (Ctrl/Cmd+V) and confirms. The paste
+     * event carries the clipboard natively, so this always works.
+     */
+    private openPasteFallbackDialog(errorName: string): void {
+        const t = (key: string): string => String(this.i18n[key] ?? key);
+        const dialog = new Dialog({
+            title: t('pasteFallbackTitle'),
+            content: `
+<div class="b3-dialog__content">
+    <div class="b3-label">
+        <div class="fn__flex-1">
+            <div>${t('pasteFallbackDesc')}</div>
+            <div class="b3-label__text">${t('pasteFallbackError').replace('{error}', errorName)}</div>
+        </div>
+    </div>
+    <div style="padding: 0 16px 8px;">
+        <textarea id="readItLaterPasteArea" class="b3-text-field fn__block" rows="6" placeholder="${t(
+            'pasteFallbackPlaceholder',
+        )}"></textarea>
+    </div>
+</div>
+<div class="b3-dialog__action">
+    <button class="b3-button b3-button--cancel">${t('pasteFallbackCancel')}</button>
+    <div class="fn__space"></div>
+    <button id="readItLaterPasteClip" class="b3-button b3-button--text">${t('pasteFallbackClip')}</button>
+</div>`,
+            width: '520px',
+            height: '340px',
+        });
+
+        const area = dialog.element.querySelector('#readItLaterPasteArea') as HTMLTextAreaElement;
+        const clipButton = dialog.element.querySelector('#readItLaterPasteClip') as HTMLButtonElement;
+        const cancelButton = dialog.element.querySelector('.b3-button--cancel') as HTMLButtonElement;
+
+        let pasted = '';
+        area.addEventListener('paste', (event) => {
+            const clipboardData = (event as ClipboardEvent).clipboardData;
+            if (clipboardData) {
+                pasted = clipboardData.getData('text/plain');
+                event.preventDefault();
+                area.value = pasted;
+            }
+        });
+
+        const clip = (): void => {
+            const content = (area.value || pasted).trim();
+            if (content === '') {
+                return;
+            }
+            dialog.destroy();
+            void this.api.processContentBatch(content);
+        };
+
+        clipButton.addEventListener('click', clip);
+        area.addEventListener('keydown', (event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                clip();
+            }
+        });
+        cancelButton.addEventListener('click', () => dialog.destroy());
+        area.focus();
     }
 
     /** Runs the image bed connectivity probe and shows the localized result. */
@@ -270,7 +363,14 @@ export default class ReadItLaterPlugin extends Plugin {
     }
 
     private async createFromClipboard(): Promise<void> {
-        const content = await this.getTextClipboardContent();
+        const result = await this.readClipboardText();
+        if (result.errorName) {
+            // Clipboard cannot be read programmatically — hand the user a paste
+            // dialog (the paste event always carries the clipboard natively).
+            this.openPasteFallbackDialog(result.errorName);
+            return;
+        }
+        const content = result.text;
         if (content.trim() === '') {
             return;
         }
