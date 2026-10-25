@@ -1,5 +1,11 @@
 import { Plugin, Custom as SiYuanCustom } from 'siyuan';
 import { showMessage } from 'siyuan';
+
+declare global {
+    interface Window {
+        require?: (moduleId: string) => unknown;
+    }
+}
 import { DEFAULT_SETTINGS, ReadItLaterSettingValue, ReadItLaterSettings } from './settings';
 import { ReadItLaterSettingsTab } from './views/settings-tab';
 import YoutubeParser from './parsers/YoutubeParser';
@@ -224,13 +230,36 @@ export default class ReadItLaterPlugin extends Plugin {
         await this.saveData('settings.json', this.settings);
     }
 
+    /**
+     * Reads the clipboard text with a fallback chain:
+     * 1. `navigator.clipboard.readText()` — works when the document is focused
+     *    and the permission is granted (browser frontends, focused desktop).
+     * 2. Electron native clipboard via `window.require('electron')` — the desktop
+     *    renderer has node integration, and the native clipboard has no
+     *    permission gate or focus requirement. Covers the common "user copied
+     *    in another app, then clicked the dock icon" case where Chromium
+     *    rejects the async clipboard API.
+     * Shows the localized error notice only when both paths fail.
+     */
     async getTextClipboardContent(): Promise<string> {
         try {
             return await navigator.clipboard.readText();
-        } catch (error) {
-            new Notice(String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.'));
-            return '';
+        } catch (navigatorError) {
+            console.warn('ReadItLater: navigator.clipboard unavailable, trying the Electron clipboard', navigatorError);
         }
+
+        try {
+            const electron = window.require?.('electron') as { clipboard?: { readText?: () => string } } | undefined;
+            const text = electron?.clipboard?.readText?.();
+            if (typeof text === 'string') {
+                return text;
+            }
+        } catch (error) {
+            console.warn('ReadItLater: Electron clipboard unavailable', error);
+        }
+
+        new Notice(String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.'));
+        return '';
     }
 
     /** Runs the image bed connectivity probe and shows the localized result. */
