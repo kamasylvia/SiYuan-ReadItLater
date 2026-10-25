@@ -1,4 +1,4 @@
-import { Plugin } from 'siyuan';
+import { Plugin, Custom as SiYuanCustom } from 'siyuan';
 import { showMessage } from 'siyuan';
 import { DEFAULT_SETTINGS, ReadItLaterSettingValue, ReadItLaterSettings } from './settings';
 import { ReadItLaterSettingsTab } from './views/settings-tab';
@@ -74,13 +74,45 @@ export default class ReadItLaterPlugin extends Plugin {
 
         this.addIcons(readItLaterIcon);
 
-        this.addTopBar({
-            icon: 'iconReadItLater',
-            title: 'ReadItLater: Create from clipboard',
-            position: 'right',
-            callback: () => {
-                void this.createFromClipboard();
+        // Entry lives in the left dock; the top bar entry was removed in favor of it.
+        const plugin = this;
+        this.addDock({
+            id: 'readItLaterDock',
+            config: {
+                position: 'LeftBottom',
+                size: { width: 240, height: 0 },
+                icon: 'iconReadItLater',
+                title: String(this.i18n.pluginName ?? 'ReadItLater'),
+                hotkey: '',
             },
+            data: {},
+            type: 'readItLaterPanel',
+            init(this: SiYuanCustom) {
+                const t = (key: string): string => String(plugin.i18n[key] ?? key);
+                const el = this.element as HTMLElement;
+                el.innerHTML = `
+<div class="b3-label">
+    <div class="fn__flex-1">
+        <div>${t('dockTitle')}</div>
+        <div class="b3-label__text">${t('dockDesc')}</div>
+    </div>
+</div>
+<div style="padding: 0 16px 8px; display: flex; flex-direction: column; gap: 8px;">
+    <button id="readItLaterDockCreate" class="b3-button b3-button--outline fn__block">${t('createNote')}</button>
+    <button id="readItLaterDockBatch" class="b3-button b3-button--outline fn__block">${t('createNoteBatch')}</button>
+</div>`;
+
+                el.querySelector('#readItLaterDockCreate')?.addEventListener('click', () => {
+                    void plugin.createFromClipboard();
+                });
+                el.querySelector('#readItLaterDockBatch')?.addEventListener('click', () => {
+                    void plugin
+                        .getTextClipboardContent()
+                        .then((content) => plugin.api.processContentBatch(content))
+                        .catch((error) => console.warn('ReadItLater: batch clip failed', error));
+                });
+            },
+            destroy() {},
         });
 
         this.addCommand({

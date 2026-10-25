@@ -90,5 +90,7 @@
     "imgbedCheckCleanupFailed": "图床连接正常,但探针清理失败——请到图床面板删除 {name}。",
     "settingsImageBedCheckName": "图床连通性检验",
     "settingsImageBedCheckDesc": "上传探针文件验证图床是否可用。",
-    "imgbedCheckButton": "检验"
+    "imgbedCheckButton": "检验",
+    "dockTitle": "稍后读",
+    "dockDesc": "从剪贴板把网页内容剪藏到收件箱笔记本。"
 }

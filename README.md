@@ -34,7 +34,7 @@ Download the latest release package from the release page, then in SiYuan open `
 
 ## Usage
 
-To create a single note, click the ReadItLater icon in the top bar or run the command `Create from clipboard` from the command palette. You can also create multiple notes from a batch of URLs, delimited by the delimiter selected in plugin settings, using the `Create from batch in clipboard` command.
+To create a single note, click the ReadItLater icon in the left dock bar or run the command `Create from clipboard` from the command palette. You can also create multiple notes from a batch of URLs, delimited by the delimiter selected in plugin settings, using the `Create from batch in clipboard` command.
 
 If you want to add content to an existing note, focus the editor and run the command `Insert at the cursor position` to insert content at the current cursor position.
 

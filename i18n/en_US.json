@@ -90,5 +90,7 @@
     "imgbedCheckCleanupFailed": "Image bed connection is working. Probe cleanup failed — please delete {name} from the image bed.",
     "settingsImageBedCheckName": "Image bed connectivity check",
     "settingsImageBedCheckDesc": "Upload a probe file to verify the image bed is reachable.",
-    "imgbedCheckButton": "Test"
+    "imgbedCheckButton": "Test",
+    "dockTitle": "Read It Later",
+    "dockDesc": "Clip web content from the clipboard into your inbox notebook."
 }
