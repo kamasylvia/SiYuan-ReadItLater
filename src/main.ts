@@ -115,6 +115,33 @@ export default class ReadItLaterPlugin extends Plugin {
             destroy() {},
         });
 
+        // Clicking the dock icon clips immediately instead of toggling the panel
+        // (the host uses dock clicks to expand/minimize). Intercepted in the
+        // capture phase on document via delegation, so it works no matter when
+        // the dock item enters the DOM. Right-click stays the position menu;
+        // the panel content remains as a fallback visible through the host UI.
+        const dockItemType = `${this.name}readItLaterPanel`;
+        document.addEventListener(
+            'click',
+            (event) => {
+                const target = event.target as HTMLElement | null;
+                if (!target || event.button !== 0) {
+                    return;
+                }
+                if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                const dockItem = target.closest(`[data-type="${dockItemType}"]`);
+                if (!dockItem) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                void plugin.createFromClipboard();
+            },
+            true,
+        );
+
         this.addCommand({
             langKey: 'createNote',
             hotkey: '',
