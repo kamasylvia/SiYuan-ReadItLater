@@ -234,7 +234,9 @@ npm run build    # production build (index.js)
 npm run lint     # ESLint with auto-fix
 ```
 
-The build output is a single `index.js` bundled by esbuild in CommonJS format, loaded by SiYuan together with `plugin.json`, `index.css` and the `i18n/` language files (a root `i18n.json` is kept for older SiYuan releases). `npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n icon.png preview.png README.md README.zh-CN.md` produces the installable package. To try the plugin locally, unzip it into `<workspace>/data/plugins/siyuan-read-it-later/` and reload the SiYuan interface.
+The build output is a single `index.js` bundled by esbuild in CommonJS format, loaded by SiYuan together with `plugin.json`, `index.css` and the `i18n/` language files (a root `i18n.json` is kept for older SiYuan releases). To try the plugin locally, unzip it into `<workspace>/data/plugins/siyuan-read-it-later/` and reload the SiYuan interface.
+
+Releases are automated: pushing a `v*` tag triggers a GitHub Actions workflow that validates the tag version against `package.json` and `plugin.json`, builds `index.js`, packs `package.zip` (`index.js index.css plugin.json i18n.json i18n README.md`) and attaches it to the GitHub release. For a manual local build, `npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md` produces the same installable package.
 
 ## License
 
