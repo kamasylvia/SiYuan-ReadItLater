@@ -62,4 +62,28 @@ jobs:
           artifactErrorsFailBuild: true
           artifacts: "package.zip"
           generateReleaseNotes: true
+          body: |
+            ## Install
+
+            Download `package.zip` from the assets below, then in SiYuan open `Settings - Marketplace` and use `Import plugin` to install it manually. Alternatively, search "ReadItLater" in the SiYuan marketplace.
+
+            ## Usage
+
+            - Click the ReadItLater icon in the left dock bar (or run `Create from clipboard` from the command palette) to clip the clipboard content into a new document inside the inbox directory.
+            - `Create from batch in clipboard` creates one note per URL from a batch of delimiter-separated URLs.
+            - `Insert at the cursor position` inserts the clipped content into the focused document at the cursor.
+            - Configure the target notebook, inbox directory, templates and content types under `Settings - Plugins - ReadItLater`.
+
+            ## 安装
+
+            下载附件中的 `package.zip`,在思源笔记打开 `设置 - 集市`,使用 `导入插件` 手动安装;也可在思源集市中直接搜索 ReadItLater。
+
+            ## 使用
+
+            - 点击左侧停靠栏的 ReadItLater 图标(或命令面板运行 `从剪贴板创建`),将剪贴板内容剪藏为收件箱目录下的新文档。
+            - `从剪贴板批量创建`:批量 URL(以设置中的分隔符分隔)一次生成多条笔记。
+            - `插入到光标位置`:将剪藏内容插入当前光标所在文档。
+            - 目标笔记本、收件箱路径、模板与内容类型均在 `设置 - 插件 - 稍后读` 中配置。
+
+            Full documentation: see the README in the repository.
           token: ${{ secrets.GITHUB_TOKEN }}
