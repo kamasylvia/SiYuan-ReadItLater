@@ -1,4 +1,6 @@
-import { kernelForward } from 'src/api/http';
+import { kernelForward, requestUrl } from 'src/api/http';
+import { postJSON } from 'src/api/kernel';
+import { getFileExtensionFromMimeType } from 'src/helpers/fileutils';
 import ReadItLaterPlugin from 'src/main';
 
 /**
@@ -279,4 +281,93 @@ async function deleteFromImageBed(plugin: ReadItLaterPlugin, fileName: string): 
         response = await kernelForward(url, 'GET', undefined, undefined, headers);
     }
     return response.ok;
+}
+
+export async function downloadImage(
+    url: URL,
+): Promise<{ fileContent: ArrayBuffer; fileExtension: string; status: number }> {
+    const res = await requestUrl({
+        url: url.href,
+        method: 'get',
+    });
+
+    return {
+        fileContent: res.arrayBuffer,
+        fileExtension: getFileExtensionFromMimeType(res.headers['content-type'] || '') ?? '',
+        status: res.status,
+    };
+}
+
+/**
+ * Background image bed upload: clipping already completed (assets downloaded,
+ * note saved), so this must never be awaited by the clip flow. Each success
+ * swaps the local asset link in the saved document for the remote URL and
+ * records the dedup mapping.
+ */
+export async function uploadImageBedInBackground(plugin: ReadItLaterPlugin, docId: string): Promise<void> {
+    const pending = plugin.pendingImageBed.splice(0, plugin.pendingImageBed.length);
+    if (pending.length === 0 || !docId) {
+        return;
+    }
+    for (const item of pending) {
+        try {
+            if (plugin.imageBedLinks[item.sourceUrl] || !item.localPath) {
+                continue;
+            }
+            const { fileContent, status } = await downloadImage(new URL(item.sourceUrl));
+            if (status >= 400) {
+                continue;
+            }
+            const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(item.sourceUrl), fileContent);
+            if (!remoteUrl) {
+                continue;
+            }
+            plugin.imageBedLinks[item.sourceUrl] = remoteUrl;
+            void plugin.persistImageBedLinks();
+            await swapLocalLinkForRemote(docId, item.localPath, remoteUrl);
+        } catch (error) {
+            console.warn('ReadItLater: background image bed upload failed, keeping local link', error);
+        }
+    }
+}
+
+/**
+ * Replaces the local asset link (written during clipping) with the image bed
+ * URL in blocks of the saved document. Matches the exact local path recorded
+ * during clipping, so only this resource's block is touched.
+ */
+async function swapLocalLinkForRemote(docId: string, localPath: string, remoteUrl: string): Promise<void> {
+    const safePath = localPath.replace(/'/g, "''");
+    if (!safePath) {
+        return;
+    }
+    let rows: Array<{ id: string }>;
+    try {
+        rows = await postJSON<Array<{ id: string }>>('/api/query/sql', {
+            stmt: `SELECT id FROM blocks WHERE root_id = '${docId}' AND markdown LIKE '%${safePath}%' AND type IN ('p', 'i', 'v', 'a')`,
+        });
+    } catch (error) {
+        console.warn('ReadItLater: background link swap SQL failed', error);
+        return;
+    }
+    if (!rows || rows.length === 0) {
+        return;
+    }
+    for (const row of rows) {
+        try {
+            const block = await postJSON<{ id: string; kramdown: string }>('/api/block/getBlockKramdown', {
+                id: row.id,
+            });
+            const md = block?.kramdown ?? '';
+            if (!md.includes(localPath)) {
+                continue;
+            }
+            const updated = md.split(`(${localPath})`).join(`(${remoteUrl})`);
+            if (updated !== md) {
+                await postJSON('/api/block/updateBlock', { dataType: 'markdown', data: updated, id: row.id });
+            }
+        } catch (error) {
+            console.warn('ReadItLater: background link swap failed', error);
+        }
+    }
 }

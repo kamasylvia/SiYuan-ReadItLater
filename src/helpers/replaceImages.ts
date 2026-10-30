@@ -1,8 +1,7 @@
-import { requestUrl } from 'src/api/http';
 import { HTTPS_PROTOCOL, HTTP_PROTOCOL } from 'src/constants/urlProtocols';
-import { imageBedFileName, shouldUploadToImageBed, uploadToImageBed } from 'src/helpers/imageBed';
+import { downloadImage, shouldUploadToImageBed } from 'src/helpers/imageBed';
 import ReadItLaterPlugin from 'src/main';
-import { getFileExtensionFromMimeType, isValidUrl } from './fileutils';
+import { isValidUrl } from './fileutils';
 
 type Replacer = {
     (match: string, anchor: string, link: string): Promise<string>;
@@ -53,24 +52,17 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
 
         try {
             // Image bed enabled and the resource matches the selected categories:
-            // reuse the persisted link when this source URL was uploaded before
-            // (re-clipping must not duplicate files on the image bed); upload it
-            // otherwise; on failure fall through to the workspace assets.
+            // reuse the persisted link synchronously (fast path, no network);
+            // otherwise record it for background upload and fall through to
+            // workspace assets NOW so clipping never waits for the image bed.
+            // Background upload swaps the local link after saveNote completes
+            // (see uploadImageBedInBackground in helpers/imageBed).
             if (shouldUploadToImageBed(link, plugin)) {
                 const cachedLink = plugin.imageBedLinks[link];
                 if (cachedLink) {
                     return `![${anchor}](${cachedLink})`;
                 }
-
-                const { fileContent, status } = await downloadImage(url);
-                if (status < 400) {
-                    const remoteUrl = await uploadToImageBed(plugin, imageBedFileName(link), fileContent);
-                    if (remoteUrl) {
-                        plugin.imageBedLinks[link] = remoteUrl;
-                        void plugin.persistImageBedLinks();
-                        return `![${anchor}](${remoteUrl})`;
-                    }
-                }
+                plugin.pendingImageBed.push({ sourceUrl: link, anchor });
             }
 
             const { fileContent, fileExtension } = await downloadImage(url);
@@ -83,6 +75,14 @@ function imageTagProcessor(plugin: ReadItLaterPlugin, noteFileName: string, asse
                 .toString(36)
                 .substring(2, 8)}.${fileExtension}`;
             const assetPath = await uploadAsset(fileName, fileContent, assetsDir);
+            // Backfill the local path so the background swap matches exactly.
+            const pending = plugin.pendingImageBed;
+            for (let index = pending.length - 1; index >= 0; index--) {
+                if (pending[index].sourceUrl === link && !pending[index].localPath) {
+                    pending[index].localPath = assetPath;
+                    break;
+                }
+            }
             return `![${anchor}](${assetPath})`;
         } catch (error) {
             console.warn(error);
@@ -121,17 +121,4 @@ async function uploadAsset(fileName: string, fileContent: ArrayBuffer, assetsDir
     }
 
     return uploadedPath;
-}
-
-async function downloadImage(url: URL): Promise<{ fileContent: ArrayBuffer; fileExtension: string; status: number }> {
-    const res = await requestUrl({
-        url: url.href,
-        method: 'get',
-    });
-
-    return {
-        fileContent: res.arrayBuffer,
-        fileExtension: getFileExtensionFromMimeType(res.headers['content-type'] || '') ?? '',
-        status: res.status,
-    };
 }

@@ -38,6 +38,13 @@ export default class ReadItLaterPlugin extends Plugin {
     public settings: ReadItLaterSettings;
     /** Image bed link dedup map: source resource URL -> uploaded link. */
     public imageBedLinks: Record<string, string> = {};
+    /**
+     * Resources awaiting background image bed upload. Filled during parsing,
+     * drained after saveNote completes so clipping never waits for uploads.
+     * localPath is backfilled once the workspace asset is written, so the
+     * background swap can match the exact link.
+     */
+    public pendingImageBed: Array<{ sourceUrl: string; anchor: string; localPath?: string }> = [];
 
     private fileSystemLimits: FilesystemLimits;
     private noteService: NoteService;

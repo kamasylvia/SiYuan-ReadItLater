@@ -8,6 +8,7 @@ import { FileExistsStrategy } from './enums/fileExistsStrategy';
 import ReadItLaterPlugin from './main';
 import { getAndCheckUrls } from './helpers/stringUtils';
 import { Notice } from './ui/notice';
+import { uploadImageBedInBackground } from './helpers/imageBed';
 
 export class NoteService {
     constructor(
@@ -20,6 +21,11 @@ export class NoteService {
         const note = await this.makeNote(content);
         try {
             await this.repository.saveNote(note);
+            // Clip completed; image bed upload runs in the background and
+            // swaps local links afterwards. Never awaited here.
+            if (this.plugin.pendingImageBed.length > 0 && note.docId) {
+                void uploadImageBedInBackground(this.plugin, note.docId);
+            }
         } catch (error) {
             if (error instanceof FileExistsError) {
                 this.handleFileExistsError([note]);
@@ -35,6 +41,9 @@ export class NoteService {
             const note = await this.makeNote(contentSegment);
             try {
                 await this.repository.saveNote(note);
+                if (this.plugin.pendingImageBed.length > 0 && note.docId) {
+                    void uploadImageBedInBackground(this.plugin, note.docId);
+                }
             } catch (error) {
                 if (error instanceof FileExistsError) {
                     existingNotes.push(note);
@@ -49,6 +58,8 @@ export class NoteService {
 
     public async insertContentAtEditorCursorPosition(content: string, protyle: IProtyle): Promise<void> {
         const note = await this.makeNote(content);
+        // Cursor insert has no saved doc to swap links in; drop the queue.
+        this.plugin.pendingImageBed.length = 0;
         protyle.getInstance().insert(note.content, true);
     }
 
