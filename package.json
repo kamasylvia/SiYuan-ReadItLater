@@ -1,6 +1,6 @@
 {
     "name": "siyuan-read-it-later",
-    "version": "0.11.8",
+    "version": "0.11.9",
     "description": "Save online content to your SiYuan workspace, utilize embedded template engine and organize your reading list to your needs. Preserve the web with ReadItLater.",
     "scripts": {
         "dev": "node esbuild.config.mjs development",

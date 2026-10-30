@@ -250,7 +250,7 @@ export default class ReadItLaterPlugin extends Plugin {
     async getTextClipboardContent(): Promise<string> {
         const result = await this.readClipboardText();
         if (result.errorName) {
-            this.openPasteFallbackDialog();
+            this.openPasteDialog();
             return '';
         }
         return result.text;
@@ -300,27 +300,28 @@ export default class ReadItLaterPlugin extends Plugin {
      * clipboard natively, so this always works. Batch clipping splits the
      * pasted text by the configured delimiter (newline by default).
      */
-    private openPasteFallbackDialog(): void {
+    private openPasteDialog(): void {
         const t = (key: string): string => String(this.i18n[key] ?? key);
+        const delimiterName = t(`delimiterName_${this.settings.batchProcessDelimiter}`);
         const dialog = new Dialog({
-            title: t('pasteFallbackTitle'),
+            title: t('pasteDialogTitle'),
             content: `
 <div class="b3-dialog__content">
     <div class="b3-label">
         <div class="fn__flex-1">
-            <div>${t('pasteFallbackDesc')}</div>
+            <div>${t('pasteDialogDesc').replace('{delimiter}', delimiterName)}</div>
         </div>
     </div>
     <div style="padding: 0 16px 8px;">
         <textarea id="readItLaterPasteArea" class="b3-text-field fn__block" rows="6" placeholder="${t(
-            'pasteFallbackPlaceholder',
+            'pasteDialogPlaceholder',
         )}"></textarea>
     </div>
 </div>
 <div class="b3-dialog__action">
-    <button class="b3-button b3-button--cancel">${t('pasteFallbackCancel')}</button>
+    <button class="b3-button b3-button--cancel">${t('pasteDialogCancel')}</button>
     <div class="fn__space"></div>
-    <button id="readItLaterPasteClip" class="b3-button b3-button--text">${t('pasteFallbackClip')}</button>
+    <button id="readItLaterPasteClip" class="b3-button b3-button--text">${t('pasteDialogClip')}</button>
 </div>`,
             width: '520px',
             height: '340px',
@@ -371,7 +372,7 @@ export default class ReadItLaterPlugin extends Plugin {
         if (result.errorName) {
             // Clipboard cannot be read programmatically — hand the user a paste
             // dialog (the paste event always carries the clipboard natively).
-            this.openPasteFallbackDialog();
+            this.openPasteDialog();
             return;
         }
         const content = result.text;

@@ -92,9 +92,13 @@
     "imgbedCheckButton": "Test",
     "dockTitle": "Read It Later",
     "dockDesc": "Clip web content from the clipboard into your inbox notebook.",
-    "pasteFallbackTitle": "Clip",
-    "pasteFallbackDesc": "Paste URLs below and click Clip. One URL per line for batch clipping.",
-    "pasteFallbackPlaceholder": "Paste URLs, one per line...",
-    "pasteFallbackCancel": "Cancel",
-    "pasteFallbackClip": "Clip"
+    "pasteDialogTitle": "Clip",
+    "pasteDialogDesc": "Paste URLs below and click Clip. Separate multiple URLs with {delimiter} for batch clipping.",
+    "pasteDialogPlaceholder": "Paste URLs...",
+    "pasteDialogCancel": "Cancel",
+    "pasteDialogClip": "Clip",
+    "delimiterName_newLine": "newlines",
+    "delimiterName_comma": "commas",
+    "delimiterName_period": "periods",
+    "delimiterName_semicolon": "semicolons"
 }

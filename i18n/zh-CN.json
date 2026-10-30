@@ -92,9 +92,13 @@
     "imgbedCheckButton": "检验",
     "dockTitle": "稍后读",
     "dockDesc": "从剪贴板把网页内容剪藏到收件箱笔记本。",
-    "pasteFallbackTitle": "剪藏",
-    "pasteFallbackDesc": "在下方粘贴 URL 后点击「剪藏」。每行一个 URL 可批量剪藏。",
-    "pasteFallbackPlaceholder": "粘贴 URL，每行一个……",
-    "pasteFallbackCancel": "取消",
-    "pasteFallbackClip": "剪藏"
+    "pasteDialogTitle": "剪藏",
+    "pasteDialogDesc": "在下方粘贴 URL 后点击「剪藏」。多个 URL 用{delimiter}分隔可批量剪藏。",
+    "pasteDialogPlaceholder": "粘贴 URL……",
+    "pasteDialogCancel": "取消",
+    "pasteDialogClip": "剪藏",
+    "delimiterName_newLine": "换行",
+    "delimiterName_comma": "逗号",
+    "delimiterName_period": "句号",
+    "delimiterName_semicolon": "分号"
 }
