@@ -4,7 +4,6 @@
     "createNoteBatch": "Create from batch in clipboard",
     "insertAtCursor": "Insert at the cursor position",
     "settingTabName": "ReadItLater",
-    "clipBoardError": "Unable to access the clipboard. Please grant clipboard permission or copy the content again.",
     "processError": "ReadItLater: Failed to process content.",
     "fileExistsTitle": "Duplicate notes detected",
     "fileExistsDoNotAsk": "Do not ask again",
@@ -93,10 +92,9 @@
     "imgbedCheckButton": "Test",
     "dockTitle": "Read It Later",
     "dockDesc": "Clip web content from the clipboard into your inbox notebook.",
-    "pasteFallbackTitle": "Clip: manual paste",
-    "pasteFallbackDesc": "The clipboard cannot be read automatically in this context. Paste your content below (Ctrl/Cmd+V) and click Clip.",
-    "pasteFallbackError": "Reason: {error}",
-    "pasteFallbackPlaceholder": "Paste URL or text here...",
+    "pasteFallbackTitle": "Clip",
+    "pasteFallbackDesc": "Paste URLs below and click Clip. One URL per line for batch clipping.",
+    "pasteFallbackPlaceholder": "Paste URLs, one per line...",
     "pasteFallbackCancel": "Cancel",
     "pasteFallbackClip": "Clip"
 }

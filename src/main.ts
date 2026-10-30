@@ -31,7 +31,6 @@ import { ReadItLaterApi } from './ReadtItLaterApi';
 import { BlueskyParser } from './parsers/BlueskyParser';
 import { PinterestParser } from './parsers/PinterestParser';
 import { checkImageBedConnectivity } from './helpers/imageBed';
-import { Notice } from './ui/notice';
 
 export default class ReadItLaterPlugin extends Plugin {
     public api: ReadItLaterApi;
@@ -251,10 +250,7 @@ export default class ReadItLaterPlugin extends Plugin {
     async getTextClipboardContent(): Promise<string> {
         const result = await this.readClipboardText();
         if (result.errorName) {
-            new Notice(
-                `${String(this.i18n.clipBoardError ?? 'Unable to access the clipboard.')} [${result.errorName}]`,
-            );
-            this.openPasteFallbackDialog(result.errorName);
+            this.openPasteFallbackDialog();
             return '';
         }
         return result.text;
@@ -298,11 +294,13 @@ export default class ReadItLaterPlugin extends Plugin {
     }
 
     /**
-     * Manual paste fallback: when the clipboard cannot be read programmatically,
-     * open a dialog where the user pastes (Ctrl/Cmd+V) and confirms. The paste
-     * event carries the clipboard natively, so this always works.
+     * Manual paste dialog: the primary clip entry. The clipboard cannot be
+     * read programmatically in the desktop client (external copies always
+     * fail), so always ask the user to paste. The paste event carries the
+     * clipboard natively, so this always works. Batch clipping splits the
+     * pasted text by the configured delimiter (newline by default).
      */
-    private openPasteFallbackDialog(errorName: string): void {
+    private openPasteFallbackDialog(): void {
         const t = (key: string): string => String(this.i18n[key] ?? key);
         const dialog = new Dialog({
             title: t('pasteFallbackTitle'),
@@ -311,7 +309,6 @@ export default class ReadItLaterPlugin extends Plugin {
     <div class="b3-label">
         <div class="fn__flex-1">
             <div>${t('pasteFallbackDesc')}</div>
-            <div class="b3-label__text">${t('pasteFallbackError').replace('{error}', errorName)}</div>
         </div>
     </div>
     <div style="padding: 0 16px 8px;">
@@ -374,7 +371,7 @@ export default class ReadItLaterPlugin extends Plugin {
         if (result.errorName) {
             // Clipboard cannot be read programmatically — hand the user a paste
             // dialog (the paste event always carries the clipboard natively).
-            this.openPasteFallbackDialog(result.errorName);
+            this.openPasteFallbackDialog();
             return;
         }
         const content = result.text;

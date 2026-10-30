@@ -4,7 +4,6 @@
     "createNoteBatch": "从剪贴板批量创建",
     "insertAtCursor": "插入到光标位置",
     "settingTabName": "稍后读",
-    "clipBoardError": "无法访问剪贴板,请授予剪贴板权限后重新复制。",
     "processError": "稍后读:处理内容失败。",
     "fileExistsTitle": "检测到重复文档",
     "fileExistsDoNotAsk": "不再询问",
@@ -93,10 +92,9 @@
     "imgbedCheckButton": "检验",
     "dockTitle": "稍后读",
     "dockDesc": "从剪贴板把网页内容剪藏到收件箱笔记本。",
-    "pasteFallbackTitle": "剪藏:手动粘贴",
-    "pasteFallbackDesc": "当前环境无法自动读取剪贴板。请在下方粘贴内容(Ctrl/Cmd+V)后点击「剪藏」。",
-    "pasteFallbackError": "原因:{error}",
-    "pasteFallbackPlaceholder": "在此粘贴 URL 或文本……",
+    "pasteFallbackTitle": "剪藏",
+    "pasteFallbackDesc": "在下方粘贴 URL 后点击「剪藏」。每行一个 URL 可批量剪藏。",
+    "pasteFallbackPlaceholder": "粘贴 URL，每行一个……",
     "pasteFallbackCancel": "取消",
     "pasteFallbackClip": "剪藏"
 }
