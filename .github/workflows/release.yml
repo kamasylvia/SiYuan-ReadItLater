@@ -53,7 +53,7 @@ jobs:
         run: npm run build
 
       - name: Create package.zip
-        run: zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md
+        run: zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md README.zh-CN.md icon.png preview.png
 
       - name: Release
         uses: ncipollo/release-action@v1

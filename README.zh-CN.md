@@ -186,10 +186,10 @@ npm run lint     # ESLint 自动修复
 
 构建产物为 esbuild 打包的单一 `index.js`(CommonJS),与 `plugin.json`、`index.css`、`i18n/` 语言文件一起由思源加载。本地试用:将仓库内容复制到 `<workspace>/data/plugins/siyuan-read-it-later/` 后重载界面。
 
-打包发布已自动化:推送 `v*` tag 触发 GitHub Actions workflow,校验 tag 版本与 `package.json`、`plugin.json` 一致后构建 `index.js`,打出 `package.zip`(`index.js index.css plugin.json i18n.json i18n README.md`)并挂到 GitHub release。本地手工打包:
+打包发布已自动化:推送 `v*` tag 触发 GitHub Actions workflow,校验 tag 版本与 `package.json`、`plugin.json` 一致后构建 `index.js`,打出 `package.zip`(`index.js index.css plugin.json i18n.json i18n README.md README.zh-CN.md icon.png preview.png`)并挂到 GitHub release。本地手工打包:
 
 ```bash
-npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md
+npm run build && zip -r package.zip index.js index.css plugin.json i18n.json i18n README.md README.zh-CN.md icon.png preview.png
 ```
 
 ## 许可
