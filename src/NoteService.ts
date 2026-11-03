@@ -1,4 +1,4 @@
-import { IProtyle } from 'siyuan';
+import { IProtyle, hideMessage, showMessage } from 'siyuan';
 import ParserCreator from './parsers/ParserCreator';
 import { VaultRepository } from './repository/VaultRepository';
 import { Note } from './parsers/Note';
@@ -64,12 +64,18 @@ export class NoteService {
     }
 
     private async makeNote(content: string): Promise<Note> {
+        // Long renders (e.g. camoufox-backed Zhihu, ~20-30s) look dead
+        // without feedback; pin a progress toast until parsing settles.
+        const progressId = 'readitlater-clipping';
+        showMessage(String(this.plugin.i18n['clippingInProgress'] ?? 'Clipping...'), 0, 'info', progressId);
         try {
             const parser = await this.parserCreator.createParser(content);
             return await parser.prepareNote(content);
         } catch (error) {
             new Notice(`ReadItLater: Failed to process content. ${error.message}`);
             throw error;
+        } finally {
+            hideMessage(progressId);
         }
     }
 

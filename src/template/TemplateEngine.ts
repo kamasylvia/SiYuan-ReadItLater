@@ -107,6 +107,11 @@ export default class TemplateEngine {
         const simplePatternRegex = /%(\w+(?:\.\w+)*)%/g;
 
         return template.replace(simplePatternRegex, (match: string, path: string) => {
+            // Percent-encoded URL bytes (%E4%BD%A0) look like %var% patterns;
+            // a bare two-hex key is never a real variable, skip silently.
+            if (/^[0-9A-Fa-f]{2}$/.test(path)) {
+                return match;
+            }
             try {
                 const value = this.resolveValue(path, data);
 

@@ -11,6 +11,7 @@ import { ReadItLaterSettingsTab } from './views/settings-tab';
 import YoutubeParser from './parsers/YoutubeParser';
 import VimeoParser from './parsers/VimeoParser';
 import BilibiliParser from './parsers/BilibiliParser';
+import ZhihuParser from './parsers/ZhihuParser';
 import TwitterParser from './parsers/TwitterParser';
 import StackExchangeParser from './parsers/StackExchangeParser';
 import WebsiteParser from './parsers/WebsiteParser';
@@ -31,6 +32,7 @@ import { ReadItLaterApi } from './ReadtItLaterApi';
 import { BlueskyParser } from './parsers/BlueskyParser';
 import { PinterestParser } from './parsers/PinterestParser';
 import { checkImageBedConnectivity } from './helpers/imageBed';
+import { CamoufoxClient } from './services/camoufox';
 
 export default class ReadItLaterPlugin extends Plugin {
     public api: ReadItLaterApi;
@@ -69,6 +71,7 @@ export default class ReadItLaterPlugin extends Plugin {
             new YoutubeChannelParser(this.app, this, this.templateEngine),
             new VimeoParser(this.app, this, this.templateEngine),
             new BilibiliParser(this.app, this, this.templateEngine),
+            new ZhihuParser(this.app, this, this.templateEngine),
             new TwitterParser(this.app, this, this.templateEngine),
             new StackExchangeParser(this.app, this, this.templateEngine),
             new TikTokParser(this.app, this, this.templateEngine),
@@ -365,6 +368,36 @@ export default class ReadItLaterPlugin extends Plugin {
         const t = (key: string): string => String(this.i18n[key] ?? key);
         const result = await checkImageBedConnectivity(this, t);
         showMessage(result.message, result.ok ? 5000 : 10000, result.ok ? 'info' : 'error');
+    }
+
+    /** Probes the camoufox MCP server (server_status) and shows the localized result. */
+    async checkCamoufoxConnection(): Promise<void> {
+        const t = (key: string): string => String(this.i18n[key] ?? key);
+        if (!String(this.settings.camoufoxApiUrl ?? '').trim()) {
+            showMessage(t('camoufoxCheckNoUrl'), 7000, 'error');
+            return;
+        }
+        // Probe even when the master toggle is off: the user is testing the URL.
+        const client = new CamoufoxClient({
+            baseUrl: String(this.settings.camoufoxApiUrl).trim().replace(/\/+$/, ''),
+            token: String(this.settings.camoufoxApiToken ?? ''),
+            timeoutMs: 15000,
+        });
+        try {
+            const status = await client.serverStatus();
+            const ok = status['ok'] === true || status['reachable'] === true || status['running'] === true;
+            showMessage(
+                ok ? t('camoufoxCheckOk') : `${t('camoufoxCheckFail')} ${JSON.stringify(status).slice(0, 200)}`,
+                ok ? 5000 : 10000,
+                ok ? 'info' : 'error',
+            );
+        } catch (error) {
+            showMessage(
+                `${t('camoufoxCheckFail')} ${error instanceof Error ? error.message : String(error)}`.slice(0, 300),
+                10000,
+                'error',
+            );
+        }
     }
 
     private async createFromClipboard(): Promise<void> {

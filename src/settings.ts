@@ -81,6 +81,15 @@ export interface ReadItLaterSettings {
     pinterestNoteTitle: string;
     pinterestNote: string;
     downloadPinterestImage: boolean;
+    camoufoxEnabled: boolean;
+    camoufoxApiUrl: string;
+    camoufoxApiToken: string;
+    camoufoxWaitSeconds: number;
+    zhihuContentTypeSlug: string;
+    zhihuNoteTitle: string;
+    zhihuNote: string;
+    downloadZhihuImages: boolean;
+    downloadZhihuImagesInDir: boolean;
     useImageBed: boolean;
     imageBedUrl: string;
     imageBedLinkUrl: string;
@@ -176,6 +185,15 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
     pinterestNote:
         '[[ReadItLater]] [[Pinterest]]\n\n# [{{ authorName }}]({{ pinURL }})\n\n![]({{ image }})\n{{ description }}',
     downloadPinterestImage: true,
+    camoufoxEnabled: false,
+    camoufoxApiUrl: '',
+    camoufoxApiToken: '',
+    camoufoxWaitSeconds: 30,
+    zhihuContentTypeSlug: 'zhihu',
+    zhihuNoteTitle: 'Zhihu - {{ title }}',
+    zhihuNote: '[[ReadItLater]] [[Zhihu]]\n\n# [{{ questionTitle }}]({{ answerURL }})\n\n{{ answerContent }}',
+    downloadZhihuImages: true,
+    downloadZhihuImagesInDir: false,
     useImageBed: false,
     imageBedUrl: '',
     imageBedLinkUrl: '',

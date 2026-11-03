@@ -20,6 +20,7 @@ enum DetailsItem {
     Vimeo = 'vimeo',
     Bilibili = 'bilibili',
     TikTok = 'tikTok',
+    Zhihu = 'zhihu',
     NonReadableArticle = 'nonReadableArticle',
     TextSnippet = 'textSnippet',
 }
@@ -124,6 +125,10 @@ export class ReadItLaterSettingsTab {
         const imageBedContainer = document.createElement('div');
         container.appendChild(imageBedContainer);
         this.renderImageBedSettings(imageBedContainer);
+
+        const camoufoxContainer = document.createElement('div');
+        container.appendChild(camoufoxContainer);
+        this.renderCamoufoxSettings(camoufoxContainer);
 
         this.addToggleSetting(
             container,
@@ -362,6 +367,22 @@ export class ReadItLaterSettingsTab {
             placeholder: DEFAULT_SETTINGS.tikTokEmbedHeight as string,
         });
 
+        // Zhihu (requires the global camoufox browser service)
+        const zhihuDetails = this.createDetailsElement(container, DetailsItem.Zhihu, 'Zhihu');
+        const zhihuDep = document.createElement('div');
+        zhihuDep.className = 'b3-label__text';
+        zhihuDep.style.marginBottom = '8px';
+        zhihuDep.textContent = this.t('settingsZhihuRequiresCamoufox');
+        zhihuDetails.appendChild(zhihuDep);
+        this.addTextSetting(zhihuDetails, this.slugName(), this.templateDesc(), 'zhihuContentTypeSlug', {
+            placeholder: DEFAULT_SETTINGS.zhihuContentTypeSlug as string,
+        });
+        this.addTextSetting(zhihuDetails, this.titleName(), this.templateDesc(), 'zhihuNoteTitle', {
+            placeholder: DEFAULT_SETTINGS.zhihuNoteTitle as string,
+        });
+        this.addTextareaSetting(zhihuDetails, this.noteName(), this.templateDesc(), 'zhihuNote');
+        this.addDownloadImagesSettings(zhihuDetails, 'downloadZhihuImages', 'downloadZhihuImagesInDir');
+
         // Nonreadable article
         const nonReadableDetails = this.createDetailsElement(
             container,
@@ -472,7 +493,7 @@ export class ReadItLaterSettingsTab {
             this.t('settingsImageBedToken'),
             this.t('settingsImageBedTokenDesc'),
             'imageBedToken',
-            { placeholder: '' },
+            { placeholder: '', type: 'password' },
         );
 
         // Connectivity check row: description on the left, wide test button on the
@@ -545,6 +566,67 @@ export class ReadItLaterSettingsTab {
         }
     }
 
+    /**
+     * Global camoufox browser service group. Shared by every parser that needs
+     * a real browser render; deliberately global, not per content type.
+     */
+    private renderCamoufoxSettings(host: HTMLElement): void {
+        host.innerHTML = '';
+
+        this.addToggleSetting(
+            host,
+            this.t('settingsCamoufoxToggle'),
+            this.t('settingsCamoufoxToggleDesc'),
+            'camoufoxEnabled',
+            () => {
+                this.renderCamoufoxSettings(host);
+            },
+        );
+
+        if (this.plugin.settings.camoufoxEnabled !== true) {
+            return;
+        }
+
+        const about = document.createElement('div');
+        about.className = 'b3-label__text';
+        about.style.marginBottom = '8px';
+        about.textContent = this.t('settingsCamoufoxAbout');
+        host.appendChild(about);
+
+        this.addTextSetting(host, this.t('settingsCamoufoxUrl'), this.t('settingsCamoufoxUrlDesc'), 'camoufoxApiUrl', {
+            placeholder: 'http://192.168.1.10:3000',
+        });
+        this.addTextSetting(
+            host,
+            this.t('settingsCamoufoxToken'),
+            this.t('settingsCamoufoxTokenDesc'),
+            'camoufoxApiToken',
+            { placeholder: '', type: 'password' },
+        );
+        this.addTextSetting(
+            host,
+            this.t('settingsCamoufoxWait'),
+            this.t('settingsCamoufoxWaitDesc'),
+            'camoufoxWaitSeconds',
+            { placeholder: String(DEFAULT_SETTINGS.camoufoxWaitSeconds) },
+        );
+
+        const checkRow = this.createSettingRow(this.t('settingsCamoufoxCheck'), '');
+        const checkButton = document.createElement('button');
+        checkButton.className = 'b3-button b3-button--outline fn__size200';
+        checkButton.textContent = this.t('settingsCamoufoxCheck');
+        checkButton.addEventListener('click', () => {
+            checkButton.disabled = true;
+            checkButton.textContent = this.t('camoufoxCheckRunning');
+            void this.plugin.checkCamoufoxConnection().finally(() => {
+                checkButton.disabled = false;
+                checkButton.textContent = this.t('settingsCamoufoxCheck');
+            });
+        });
+        checkRow.appendChild(checkButton);
+        host.appendChild(checkRow);
+    }
+
     private createSectionContainer(): HTMLElement {
         const container = document.createElement('div');
         container.style.padding = '8px 16px';
@@ -579,10 +661,11 @@ export class ReadItLaterSettingsTab {
         name: string,
         description: string,
         settingKey: string,
-        options: { placeholder?: string } = {},
+        options: { placeholder?: string; type?: 'text' | 'password' } = {},
     ): void {
         const row = this.createSettingRow(name, description);
         const input = document.createElement('input');
+        input.type = options.type ?? 'text';
         input.className = 'b3-text-field fn__size200';
         input.placeholder = options.placeholder ?? '';
         const storedValue = this.plugin.settings[settingKey];
