@@ -2,7 +2,7 @@
     "name": "siyuan-read-it-later",
     "author": "Laniakea Kamasylvia",
     "url": "https://github.com/kamasylvia/SiYuan-ReadItLater",
-    "version": "0.12.0",
+    "version": "0.12.1",
     "minAppVersion": "3.2.0",
     "backends": [
         "windows",
@@ -25,8 +25,8 @@
         "zh-CN": "稍后读"
     },
     "description": {
-        "default": "Save online content to your SiYuan workspace, utilize embedded template engine and organize your reading list to your needs. Preserve the web with ReadItLater.",
-        "zh-CN": "将网页内容保存为思源笔记,利用内置模板引擎按需整理你的阅读列表。Preserve the web with ReadItLater."
+        "default": "Save online content to your SiYuan workspace, utilize embedded template engine and organize your reading list to your needs. Supports Zhihu answers/articles via a self-hosted browser service. Preserve the web with ReadItLater.",
+        "zh-CN": "将网页内容保存为思源笔记,利用内置模板引擎按需整理你的阅读列表。支持经自建浏览器服务剪藏知乎回答与专栏文章。Preserve the web with ReadItLater."
     },
     "readme": {
         "default": "README.md",

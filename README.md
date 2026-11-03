@@ -145,7 +145,15 @@ Resources whose extension matches a selected category (or one of the custom exte
 
 Uploaded links are deduplicated: the source URL → link mapping is persisted in the plugin storage (`imgbed-links.json`), so re-clipping the same article reuses the stored links instead of uploading duplicate files to the image bed. If you switch to a different image bed, clear that storage file (`data/storage/petal/siyuan-read-it-later/imgbed-links.json`) so old links stop being reused.
 
-## Content Types
+### Camoufox browser service
+
+Some pages (currently Zhihu) can only be rendered by a real browser. The plugin cannot ship a browser, so it delegates those renders to a self-hosted [camofox-mcp](https://github.com/redf0x1/camofox-mcp) server over HTTP. Deploy the server first, then enable **Use camoufox browser service** in General settings and fill in:
+
+- **Camoufox MCP server URL** — base URL of your server, e.g. `http://192.168.1.10:3000` (the plugin appends `/mcp`). It must be reachable from the SiYuan kernel network when the frontend cannot reach it directly (the plugin retries through the kernel forward proxy).
+- **Camoufox API token** — Bearer token if your server requires auth; empty for open servers.
+- **Render wait (seconds)** — how long to wait for page content before extracting.
+
+A **Check** button probes `server_status` through the frontend connection. Note it only verifies frontend reachability; clipping itself falls back to the kernel proxy when the frontend cannot reach the server.
 
 Structure of note content is determined by URL. Currently the plugin supports saving content of websites and embedding content from multiple services. Each content type has a title and note template with replaceable variables, which can be edited in plugin settings.
 
@@ -196,6 +204,10 @@ Embeds the video player.
 ### TikTok
 
 Saves video description and embeds the player.
+
+### Zhihu
+
+Saves Zhihu answers (`zhihu.com/question/<id>/answer/<id>`) and column articles (`zhihu.com/p/<id>`) as markdown, with images downloaded to assets. Zhihu sits behind a JS anti-scraping challenge that blocks anonymous fetching, so rendering is delegated to a self-hosted [camofox-mcp](https://github.com/redf0x1/camofox-mcp) browser service (see below). Each clip opens a throwaway browser tab and takes ~20-30 seconds.
 
 ### Text Snippet
 
