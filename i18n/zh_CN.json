@@ -99,7 +99,7 @@
     "pasteDialogClip": "剪藏",
     "settingsCamoufoxToggle": "使用 camoufox 浏览器服务",
     "settingsCamoufoxToggleDesc": "需要真实浏览器才能解析的页面（反爬墙）用此服务。需自建 camoufox MCP 服务端；插件无法内置浏览器。",
-    "settingsCamoufoxAbout": "说明：插件没有进程执行能力，也装不下 2.5GB 的 camoufox 浏览器。剪藏 JS 质询墙后的页面（如知乎）时，渲染委托给你自建的 camoufox MCP 服务（HTTP 调用）。每次剪藏会开一个一次性浏览器页签（约 20-30 秒）。先部署服务端，再填下面的地址和令牌。",
+    "settingsCamoufoxAbout": "说明：插件没有进程执行能力，也装不下 2.5GB 的 camoufox 浏览器。剪藏 JS 质询墙后的页面（如知乎）时，渲染委托给你自建的 camoufox MCP 服务（HTTP 调用）。每次剪藏会开一个一次性浏览器页签（约 20-30 秒）。先部署服务端，再填下面的地址和令牌。 服务端项目：https://github.com/redf0x1/camofox-mcp",
     "settingsCamoufoxUrl": "Camoufox MCP 服务地址",
     "settingsCamoufoxUrlDesc": "你的 camoufox MCP 服务基地址，例如 http://192.168.1.10:3000。插件会自动拼接 /mcp。",
     "settingsCamoufoxToken": "Camoufox API 令牌",
