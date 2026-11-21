@@ -64,10 +64,10 @@ export class NoteService {
     }
 
     private async makeNote(content: string): Promise<Note> {
-        // Long renders (e.g. camoufox-backed Zhihu, ~20-30s) look dead
-        // without feedback; pin a progress toast until parsing settles.
-        const progressId = 'readitlater-clipping';
-        showMessage(String(this.plugin.i18n['clippingInProgress'] ?? 'Clipping...'), 0, 'info', progressId);
+        // Long renders (e.g. camoufox-backed Zhihu, ~20-30s) look dead without
+        // feedback; parsers update the pinned toast per stage through
+        // plugin.showClippingProgress.
+        this.plugin.showClippingProgress(String(this.plugin.i18n['clippingInProgress'] ?? 'Clipping...'));
         try {
             const parser = await this.parserCreator.createParser(content);
             return await parser.prepareNote(content);
@@ -75,7 +75,7 @@ export class NoteService {
             new Notice(`ReadItLater: Failed to process content. ${error.message}`);
             throw error;
         } finally {
-            hideMessage(progressId);
+            this.plugin.hideClippingProgress();
         }
     }
 

@@ -85,6 +85,7 @@ export interface ReadItLaterSettings {
     camoufoxApiUrl: string;
     camoufoxApiToken: string;
     camoufoxWaitSeconds: number;
+    camoufoxVirtualDisplay: boolean;
     zhihuContentTypeSlug: string;
     zhihuNoteTitle: string;
     zhihuNote: string;
@@ -189,6 +190,7 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
     camoufoxApiUrl: '',
     camoufoxApiToken: '',
     camoufoxWaitSeconds: 30,
+    camoufoxVirtualDisplay: true,
     zhihuContentTypeSlug: 'zhihu',
     zhihuNoteTitle: 'Zhihu - {{ title }}',
     zhihuNote: '[[ReadItLater]] [[Zhihu]]\n\n# [{{ questionTitle }}]({{ answerURL }})\n\n{{ answerContent }}',

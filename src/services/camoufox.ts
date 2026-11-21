@@ -6,6 +6,13 @@ export interface CamoufoxConfig {
     token: string;
     /** Per-request timeout in milliseconds. */
     timeoutMs: number;
+    /**
+     * Drive the browser on a virtual (Xvfb) display instead of headless.
+     * Anti-scraping walls fingerprint headless sessions and soft-block UGC
+     * pages for them (measured against Zhihu, 2026-11-21); virtual keeps a
+     * real rendering path while staying GUI-less on a headless server.
+     */
+    virtualDisplay: boolean;
 }
 
 interface JsonRpcResponse {
@@ -45,6 +52,7 @@ export class CamoufoxClient {
             baseUrl,
             token: String(settings.camoufoxApiToken ?? ''),
             timeoutMs: Number.isFinite(waitSeconds) && waitSeconds > 0 ? Math.round(waitSeconds * 1000) : 30000,
+            virtualDisplay: settings.camoufoxVirtualDisplay !== false,
         });
     }
 
@@ -66,12 +74,24 @@ export class CamoufoxClient {
             /** JS expressions evaluated against the rendered page. */
             expressions?: Record<string, string>;
         } = {},
+        /** Stage progress: (percent, stage i18n key). */
+        onStage?: (percent: number, stageKey: string) => void,
     ): Promise<{ html: string; values: T }> {
-        const tabId = await this.createTab(url);
+        if (this.config.virtualDisplay) {
+            // Load-bearing: anti-scraping walls fingerprint headless sessions
+            // and soft-block UGC pages for them; the virtual (Xvfb) display
+            // keeps a real rendering path on a GUI-less server. The override
+            // persists server-side, and a TIMEOUT here still applied it.
+            await this.callTool('toggle_display', { headless: 'virtual', userId: 'default' }).catch(() => undefined);
+        }
+        onStage?.(10, 'clippingStageConnecting');
+        const tabId = await this.createTabWithRecovery(url);
         try {
+            onStage?.(30, 'clippingStageRendering');
             if (options.waitSelector) {
                 await this.waitForSelector(tabId, options.waitSelector);
             }
+            onStage?.(60, 'clippingStageExtracting');
             const html = await this.getPageHtml(tabId, options.htmlSelector);
             const values = {} as Record<string, unknown>;
             for (const [key, expression] of Object.entries(options.expressions ?? {})) {
@@ -85,12 +105,41 @@ export class CamoufoxClient {
         }
     }
 
-    private async createTab(url: string): Promise<string> {
-        const result = (await this.callTool('create_tab', { url })) as { tabId?: unknown };
-        if (typeof result.tabId !== 'string' || !result.tabId) {
-            throw new Error('camoufox create_tab returned no tabId');
+    /**
+     * create_tab with timeout recovery: the MCP server answers TIMEOUT after
+     * its fixed 30s call cap on challenge pages while the tab keeps loading
+     * — recover the tabId from list_tabs instead of failing the clip.
+     */
+    private async createTabWithRecovery(url: string): Promise<string> {
+        let tabId: string | undefined;
+        try {
+            const result = (await this.callTool('create_tab', { url })) as { tabId?: unknown };
+            tabId = typeof result.tabId === 'string' ? result.tabId : undefined;
+        } catch {
+            tabId = undefined;
         }
-        return result.tabId;
+        if (!tabId) {
+            await new Promise((r) => setTimeout(r, 3000));
+            const rows = await this.listTabs();
+            const target = url.split('?')[0] ?? url;
+            const mine = rows.filter((row) => (row.url ?? '').startsWith(target));
+            tabId = (mine[0] ?? rows[rows.length - 1])?.tabId;
+            if (!tabId) {
+                throw new Error('camoufox create_tab timed out and no tab could be recovered');
+            }
+        }
+        return tabId;
+    }
+
+    private async listTabs(): Promise<Array<{ tabId: string; url?: string }>> {
+        const result = (await this.callTool('list_tabs', {})) as unknown;
+        if (Array.isArray(result)) {
+            return result as Array<{ tabId: string; url?: string }>;
+        }
+        if (result && typeof result === 'object' && Array.isArray((result as { tabs?: unknown }).tabs)) {
+            return (result as { tabs: Array<{ tabId: string; url?: string }> }).tabs;
+        }
+        return [];
     }
 
     private async waitForSelector(tabId: string, selector: string): Promise<void> {

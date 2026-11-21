@@ -112,6 +112,13 @@ class ZhihuParser extends Parser {
         createdAt: Date,
     ): Promise<ZhihuNoteData> {
         const isArticle = kind === 'article';
+        // Percent/stage roll inside the pinned 'Clipping...' toast, wording
+        // localized via the same i18n table as every other message.
+        const onStage = (percent: number, stageKey: string): void => {
+            const pattern = String(this.plugin.i18n['clippingProgressPattern'] ?? 'Clipping - {percent}%: {stage}');
+            const stage = String(this.plugin.i18n[stageKey] ?? stageKey);
+            this.plugin.showClippingProgress(pattern.replace('{percent}', String(percent)).replace('{stage}', stage));
+        };
         const page = await client.renderPage<ZhihuPageValues>(url, {
             waitSelector: isArticle ? '.Post-RichText' : '.RichContent',
             htmlSelector: isArticle ? '.Post-RichText' : '.RichContent',
@@ -124,7 +131,7 @@ class ZhihuParser extends Parser {
                     ? "document.querySelector('.Post-Title')?.innerText?.trim() ?? document.title.replace(/\\s*-\\s*知乎\\s*$/, '')"
                     : "document.querySelector('.QuestionHeader-title')?.innerText?.trim() ?? document.title.replace(/\\s*-\\s*知乎\\s*$/, '')",
             },
-        });
+        }, onStage);
 
         const answerContent = (await parseHtmlContent(this.stripChrome(page.html))).trim();
         if (answerContent.length === 0) {

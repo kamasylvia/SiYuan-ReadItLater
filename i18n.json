@@ -64,7 +64,14 @@
         "embedHeight": "embed player height",
         "embedPrivacy": "Embed in privacy enhanced mode",
         "embedPrivacyDesc": "If enabled, content will be embedded in privacy enhanced mode, which prevents the use of views of it from influencing the viewer’s browsing experience on YouTube.",
-        "chapterTemplate": "chapter template"
+        "chapterTemplate": "chapter template",
+        "clippingInProgress": "Clipping...",
+        "clippingProgressPattern": "Clipping - {percent}%: {stage}",
+        "clippingStageConnecting": "Starting browser session...",
+        "clippingStageRendering": "Rendering page...",
+        "clippingStageExtracting": "Extracting content...",
+        "settingsCamoufoxVirtual": "Use a virtual display (Xvfb)",
+        "settingsCamoufoxVirtualDesc": "Render on a virtual display instead of headless. Anti-scraping walls fingerprint headless sessions and block UGC pages for them; keep this on unless debugging."
     },
     "zh_CN": {
         "pluginName": "稍后读",
@@ -131,7 +138,14 @@
         "embedHeight": "嵌入播放器高度",
         "embedPrivacy": "以增强隐私模式嵌入",
         "embedPrivacyDesc": "启用后,内容将以增强隐私模式嵌入,防止其浏览记录影响你在 YouTube 上的浏览体验。",
-        "chapterTemplate": "章节模板"
+        "chapterTemplate": "章节模板",
+        "clippingInProgress": "剪藏中…",
+        "clippingProgressPattern": "剪藏中 — {percent}% ：{stage}",
+        "clippingStageConnecting": "启动浏览器会话…",
+        "clippingStageRendering": "渲染页面…",
+        "clippingStageExtracting": "提取正文…",
+        "settingsCamoufoxVirtual": "使用虚拟显示（Xvfb）",
+        "settingsCamoufoxVirtualDesc": "在虚拟显示而非无头模式下渲染。反爬墙会指纹识别无头会话并拦截其访问正文页；除调试外请保持开启。"
     },
     "settingsFsLimitPathDesc": "Leave empty to use the default limit. Default: {default}.",
     "settingsFsLimitFileNameDesc": "Leave empty to use the default limit. Default: {default}.",
