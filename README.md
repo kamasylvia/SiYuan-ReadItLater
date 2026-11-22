@@ -230,12 +230,20 @@ await readItLater.api.processContent('https://example.com/some-article');
 
 ## Differences from the Obsidian version
 
+### Platform differences
+
 - Notes are stored as SiYuan documents (kernel API) instead of plain markdown files; the note title becomes the document title.
 - A target notebook must be selected in settings before notes can be saved.
 - The `extendShareMenu` setting and the share menu / link context menu entries have no SiYuan equivalent and were removed.
 - Web requests are routed through the SiYuan kernel forward proxy, which avoids CORS issues on every frontend.
 - Image download works on all frontends (desktop, mobile, browser), not only on desktop.
 - Date formatting uses dayjs instead of moment; format strings from the Obsidian version remain compatible.
+
+### New capabilities (not in the Obsidian version)
+
+- **Zhihu clipping** — saves answers (`question/<id>/answer/<id>`) and column articles (`/p/<id>`); pages behind the JS anti-scraping challenge are rendered by your self-hosted camofox-browser (with a virtual display option and Zhihu cookie bridging), with their own slug/title/content templates and optional image download.
+- **camoufox browser service** — global service settings: REST base URL (default port 9377), API token, render wait, a virtual display toggle, and a one-click connectivity check.
+- **Image bed upload** — clipped resources (images/videos/files/custom extensions) are uploaded to your image bed and written into notes as external links instead of landing in the assets directory; supports a link prefix (split upload vs public origins), a one-click connectivity check, and per-source-URL dedup.
 
 ## Development
 

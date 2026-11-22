@@ -181,12 +181,20 @@ await readItLater.api.processContent('https://example.com/some-article');
 
 ## 与 Obsidian 版的差异
 
+### 平台差异
+
 - 笔记以思源文档(内核 API)存储,标题即文档标题
 - 保存前需在设置中选择目标笔记本
 - 移除了思源没有对应机制的分享菜单入口(`extendShareMenu`)
 - 网络请求经思源内核 forward proxy 转发,所有前端无 CORS 问题
 - 图片下载在所有前端可用,不再限于桌面端
 - 日期格式化用 dayjs 替代 moment,格式串兼容
+
+### 新增功能(Obsidian 版没有)
+
+- **知乎剪藏**——保存回答(`question/<id>/answer/<id>`)与专栏文章(`/p/<id>`);JS 反爬质询后的页面经自建 camofox-browser 渲染(支持虚拟显示与知乎 Cookie 桥接),独立的 slug/标题/正文模板,图片可下载到资源目录。
+- **camoufox 浏览器服务**——全局服务设置:REST 基址(默认端口 9377)、API 令牌、渲染等待时长、虚拟显示开关,并带一键连通性检测。
+- **图床上传**——剪藏资源(图片/视频/文件/自定义后缀)直接上传图床并以外链写入笔记,不必落本地资源目录;支持链接前缀(上传与公开域名分离时)与一键连通性检测,外链按源 URL 去重。
 
 ## 开发
 
