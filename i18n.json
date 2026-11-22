@@ -71,7 +71,9 @@
         "clippingStageRendering": "Rendering page...",
         "clippingStageExtracting": "Extracting content...",
         "settingsCamoufoxVirtual": "Use a virtual display (Xvfb)",
-        "settingsCamoufoxVirtualDesc": "Render on a virtual display instead of headless. Anti-scraping walls fingerprint headless sessions and block UGC pages for them; keep this on unless debugging."
+        "settingsCamoufoxVirtualDesc": "Render on a virtual display instead of headless. Anti-scraping walls fingerprint headless sessions and block UGC pages for them; keep this on unless debugging.",
+        "settingsZhihuCookie": "Zhihu cookie (optional)",
+        "settingsZhihuCookieDesc": "Paste your logged-in Zhihu Cookie header value. Gated articles (some UGC posts) need a logged-in session even through the browser render; leave empty and non-gated articles still clip."
     },
     "zh_CN": {
         "pluginName": "稍后读",
@@ -145,7 +147,9 @@
         "clippingStageRendering": "渲染页面…",
         "clippingStageExtracting": "提取正文…",
         "settingsCamoufoxVirtual": "使用虚拟显示（Xvfb）",
-        "settingsCamoufoxVirtualDesc": "在虚拟显示而非无头模式下渲染。反爬墙会指纹识别无头会话并拦截其访问正文页；除调试外请保持开启。"
+        "settingsCamoufoxVirtualDesc": "在虚拟显示而非无头模式下渲染。反爬墙会指纹识别无头会话并拦截其访问正文页；除调试外请保持开启。",
+        "settingsZhihuCookie": "知乎 Cookie（可选）",
+        "settingsZhihuCookieDesc": "粘贴你已登录知乎的 Cookie 头。部分 UGC 正文页即使经浏览器渲染也可能要求登录；填写后此类文章可确定性剪藏，留空则未拦截的文章仍可剪。"
     },
     "settingsFsLimitPathDesc": "Leave empty to use the default limit. Default: {default}.",
     "settingsFsLimitFileNameDesc": "Leave empty to use the default limit. Default: {default}.",

@@ -401,8 +401,9 @@ export default class ReadItLaterPlugin extends Plugin {
         // Probe even when the master toggle is off: the user is testing the URL.
         const client = new CamoufoxClient({
             baseUrl: String(this.settings.camoufoxApiUrl).trim().replace(/\/+$/, ''),
-            token: String(this.settings.camoufoxApiToken ?? ''),
-            timeoutMs: 15000,
+            apiKey: String(this.settings.camoufoxApiToken ?? ''),
+            waitSeconds: 15,
+            userId: 'default',
             virtualDisplay: false,
         });
         try {

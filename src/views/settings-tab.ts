@@ -611,6 +611,13 @@ export class ReadItLaterSettingsTab {
             { placeholder: String(DEFAULT_SETTINGS.camoufoxWaitSeconds) },
         );
 
+        this.addTextareaSetting(
+            host,
+            this.t('settingsZhihuCookie'),
+            this.t('settingsZhihuCookieDesc'),
+            'zhihuCookie',
+        );
+
         const checkRow = this.createSettingRow(this.t('settingsCamoufoxCheck'), '');
         const checkButton = document.createElement('button');
         checkButton.className = 'b3-button b3-button--outline fn__size200';

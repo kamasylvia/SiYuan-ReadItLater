@@ -1,21 +1,2 @@
-# Intellij
-*.iml
-.idea
-
-# npm
-node_modules
-
-# build
-main.js
-index.js
-package.zip
-*.js.map
-
-# legacy obsidian build output
-data.json
-
-# local vector index (zg)
-.zvec-grep/
-
-# workspace task files
-.work/
+.DS_Store
+**/.DS_Store

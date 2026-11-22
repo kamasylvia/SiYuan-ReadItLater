@@ -86,6 +86,8 @@ export interface ReadItLaterSettings {
     camoufoxApiToken: string;
     camoufoxWaitSeconds: number;
     camoufoxVirtualDisplay: boolean;
+    /** Zhihu Cookie header — makes gated articles deterministic through the browser render. */
+    zhihuCookie: string;
     zhihuContentTypeSlug: string;
     zhihuNoteTitle: string;
     zhihuNote: string;
@@ -191,6 +193,7 @@ export const DEFAULT_SETTINGS: ReadItLaterSettings = {
     camoufoxApiToken: '',
     camoufoxWaitSeconds: 30,
     camoufoxVirtualDisplay: true,
+    zhihuCookie: '',
     zhihuContentTypeSlug: 'zhihu',
     zhihuNoteTitle: 'Zhihu - {{ title }}',
     zhihuNote: '[[ReadItLater]] [[Zhihu]]\n\n# [{{ questionTitle }}]({{ answerURL }})\n\n{{ answerContent }}',

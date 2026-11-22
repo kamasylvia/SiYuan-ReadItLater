@@ -112,6 +112,13 @@ class ZhihuParser extends Parser {
         createdAt: Date,
     ): Promise<ZhihuNoteData> {
         const isArticle = kind === 'article';
+        // Cookie bridge first: a logged-in session makes gated UGC articles
+        // deterministic through the browser render (the browser jar persists
+        // it with the session profile).
+        const cookie = String(this.plugin.settings.zhihuCookie ?? '').trim();
+        if (cookie) {
+            await client.importCookieHeader(cookie);
+        }
         // Percent/stage roll inside the pinned 'Clipping...' toast, wording
         // localized via the same i18n table as every other message.
         const onStage = (percent: number, stageKey: string): void => {
