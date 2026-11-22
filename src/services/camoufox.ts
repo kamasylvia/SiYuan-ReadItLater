@@ -145,33 +145,30 @@ export class CamoufoxClient {
         }
     }
 
+    /**
+     * Blank-open + navigate, mirroring the pergame backend's render flow.
+     * POST /tabs with the real URL blocks until the page settles and gated
+     * pages (Zhihu) outlive every timeout budget — and the kernel-side
+     * forwardProxy timeout then kills the request while camofox discards the
+     * tab, which also breaks the old tab-list recovery. A blank tab returns
+     * instantly; navigate is a cheap POST and waitForSelector owns the wait.
+     */
     private async createTabWithRecovery(url: string): Promise<string> {
-        let tabId: string | undefined;
-        try {
-            const created = (await this.requestJson('/tabs', {
-                method: 'POST',
-                body: JSON.stringify({ url, userId: this.config.userId }),
-            })) as { tabId?: string; id?: string };
-            tabId = created.tabId ?? created.id;
-        } catch {
-            tabId = undefined;
-        }
+        // sessionKey is required by camofox-browser >=2.4.5 and picks the
+        // browser profile; a fixed value keeps cookies (Zhihu bridge)
+        // persistent across clips.
+        const created = (await this.requestJson('/tabs', {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.config.userId, sessionKey: 'main' }),
+        })) as { tabId?: string; id?: string };
+        const tabId = created.tabId ?? created.id;
         if (!tabId) {
-            // The MCP server answers TIMEOUT after its fixed 30s call cap on
-            // challenge pages while the tab keeps loading — recover the
-            // tabId from the tab list instead of failing the clip.
-            await new Promise((r) => setTimeout(r, 3000));
-            const rows = (await this.requestJson('/tabs', { method: 'GET' })) as unknown;
-            const list = Array.isArray(rows)
-                ? (rows as Array<{ url?: string; tabId?: string }>)
-                : [];
-            const target = url.split('?')[0] ?? url;
-            const mine = list.filter((row) => (row.url ?? '').startsWith(target));
-            tabId = (mine[0] ?? list[list.length - 1])?.tabId;
-            if (!tabId) {
-                throw new Error('camoufox create_tab timed out and no tab could be recovered');
-            }
+            throw new Error('camoufox blank tab returned no tabId');
         }
+        await this.requestJson(`/tabs/${encodeURIComponent(tabId)}/navigate`, {
+            method: 'POST',
+            body: JSON.stringify({ url, userId: this.config.userId }),
+        });
         return tabId;
     }
 
@@ -248,8 +245,9 @@ export class CamoufoxClient {
                 headers: [Object.entries(headers).map(([k, v]) => ({ [k]: v })).reduce((a, b) => ({ ...a, ...b }), {})],
                 contentType: init.body !== undefined ? 'application/json' : undefined,
                 payload: init.body ?? '',
-                payloadEncoding: 'text',
-                responseEncoding: 'text',
+                // No payloadEncoding: the kernel mangles POST bodies when
+                // payloadEncoding:"text" is set (the JSON arrives quoted and
+                // camofox rejects it); the omitted default forwards verbatim.
                 redirect: true,
             },
             timeoutMs + 5000,
