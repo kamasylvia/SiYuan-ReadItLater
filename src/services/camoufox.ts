@@ -175,11 +175,13 @@ export class CamoufoxClient {
     private async waitForSelector(tabId: string, selector: string): Promise<void> {
         // Poll via evaluate: the browser service has no native selector-wait
         // endpoint, and a long-running evaluate hits its internal 5s cap —
-        // so poll outside with the full wait budget.
+        // so poll outside with the full wait budget. The element must carry
+        // non-empty text: Zhihu's SPA mounts empty shells (title included)
+        // before hydration, and reading them early yields '.'-style clips.
         const deadline = Date.now() + this.config.waitSeconds * 1000;
-        const exists = `Boolean(document.querySelector(${JSON.stringify(selector)}))`;
+        const ready = `(() => { const el = document.querySelector(${JSON.stringify(selector)}); return !!el && el.textContent.trim().length > 0; })()`;
         while (Date.now() < deadline) {
-            const r = (await this.evaluateJs(tabId, exists).catch(() => null)) as
+            const r = (await this.evaluateJs(tabId, ready).catch(() => null)) as
                 | { result?: unknown }
                 | null;
             if (r?.result === true) return;

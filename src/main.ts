@@ -1,6 +1,9 @@
 import { Dialog, Plugin, Custom as SiYuanCustom } from 'siyuan';
 import { hideMessage, showMessage } from 'siyuan';
 
+/** Fixed toast id so every stage updates one pinned toast. */
+const CLIP_TOAST_ID = 'readitlater-clip-progress';
+
 declare global {
     interface Window {
         require?: (moduleId: string) => unknown;
@@ -36,7 +39,6 @@ import { CamoufoxClient } from './services/camoufox';
 
 export default class ReadItLaterPlugin extends Plugin {
     /** Live progress toast id ('Clipping...' pin) — replaced in place per stage. */
-    private clippingToastId: string | null = null;
     public api: ReadItLaterApi;
     public settings: ReadItLaterSettings;
     /** Image bed link dedup map: source resource URL -> uploaded link. */
@@ -64,22 +66,16 @@ export default class ReadItLaterPlugin extends Plugin {
     }
 
     /**
-     * Progress toast for long clips. SiYuan's showMessage has no id API (an
-     * id param only deduplicates, it does not update text), so stages call
-     * this repeatedly with timeout=0 — the last message just stays pinned
-     * until hideClippingProgress clears it. Text swaps because each stage
-     * hides the previous toast first under the same id.
+     * Progress toast for long clips. A fixed messageId makes SiYuan update
+     * the toast in place per stage — no stacking — and hideMessage clears it
+     * when the clip finishes (NoteService calls this in a finally block).
      */
     showClippingProgress(text: string): void {
-        this.hideClippingProgress();
-        showMessage(text, 0, 'info');
+        showMessage(text, 0, 'info', CLIP_TOAST_ID);
     }
 
     hideClippingProgress(): void {
-        if (this.clippingToastId !== null) {
-            hideMessage(this.clippingToastId);
-            this.clippingToastId = null;
-        }
+        hideMessage(CLIP_TOAST_ID);
     }
 
     async onload(): Promise<void> {
