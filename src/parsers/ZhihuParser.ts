@@ -90,19 +90,26 @@ class ZhihuParser extends Parser {
             author: data.authorName,
             date: this.getFormattedDateForFilename(createdAt),
         });
+        // Guard against degenerate rendered names ('.' / whitespace): fall back
+        // to the question title, then to a dated constant. The same safe name
+        // feeds the assets dir so downloads never land in '.' either.
+        const safeName =
+            fileNameTemplate.trim().replace(/^[.\s]+$/, '').trim() ||
+            data.questionTitle.trim() ||
+            'Zhihu clip ' + this.getFormattedDateForFilename(createdAt);
 
         let content = this.templateEngine.render(this.plugin.settings.zhihuNote, data);
 
         if (this.plugin.settings.downloadZhihuImages) {
             content = await replaceImages(
                 this.plugin,
-                normalizeFilename(fileNameTemplate),
+                normalizeFilename(safeName),
                 content,
-                this.getAssetsDir(fileNameTemplate, createdAt),
+                this.getAssetsDir(safeName, createdAt),
             );
         }
 
-        return new Note(fileNameTemplate, 'md', content, this.plugin.settings.zhihuContentTypeSlug, createdAt);
+        return new Note(safeName, 'md', content, this.plugin.settings.zhihuContentTypeSlug, createdAt);
     }
 
     private async getNoteData(
@@ -126,17 +133,23 @@ class ZhihuParser extends Parser {
             const stage = String(this.plugin.i18n[stageKey] ?? stageKey);
             this.plugin.showClippingProgress(pattern.replace('{percent}', String(percent)).replace('{stage}', stage));
         };
+        // waitSelector targets the TITLE element: Zhihu's SPA writes
+        // document.title only after the route settles, and waiting on the body
+        // selector alone raced it - clips came out titled '.'. The title
+        // element is server-rendered, so its presence means text is readable.
         const page = await client.renderPage<ZhihuPageValues>(url, {
-            waitSelector: isArticle ? '.Post-RichText' : '.RichContent',
+            waitSelector: isArticle ? '.Post-Title' : '.QuestionHeader-title',
             htmlSelector: isArticle ? '.Post-RichText' : '.RichContent',
             expressions: {
-                title: 'document.title',
+                title: isArticle
+                    ? "document.querySelector('.Post-Title')?.innerText?.trim() || document.title.replace(/\\s*-\\s*知乎\\s*$/, '')"
+                    : "document.querySelector('.QuestionHeader-title')?.innerText?.trim() || document.title.replace(/\\s*-\\s*知乎\\s*$/, '')",
                 authorName: isArticle
                     ? "document.querySelector('.Post-Author .AuthorInfo-name')?.innerText?.trim() ?? ''"
                     : "document.querySelector('.AnswerItem-authorInfo .AuthorInfo-name a')?.innerText?.trim() ?? ''",
                 questionTitle: isArticle
-                    ? "document.querySelector('.Post-Title')?.innerText?.trim() ?? document.title.replace(/\\s*-\\s*知乎\\s*$/, '')"
-                    : "document.querySelector('.QuestionHeader-title')?.innerText?.trim() ?? document.title.replace(/\\s*-\\s*知乎\\s*$/, '')",
+                    ? "document.querySelector('.Post-Title')?.innerText?.trim() || document.title.replace(/\\s*-\\s*知乎\\s*$/, '')"
+                    : "document.querySelector('.QuestionHeader-title')?.innerText?.trim() || document.title.replace(/\\s*-\\s*知乎\\s*$/, '')",
             },
         }, onStage);
 
