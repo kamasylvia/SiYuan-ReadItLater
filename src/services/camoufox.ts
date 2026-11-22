@@ -1,11 +1,10 @@
 /**
  * Camoufox browser client — direct REST against the camofox-browser
- * container (no MCP layer).
+ * container directly.
  *
- * The camofox-mcp container is a thin JSON-RPC wrapper around this exact
- * REST API (camofox-browser serves `/tabs`, `/sessions/...`, `/evaluate`
- * natively; the MCP server only translates protocol). Going straight to
- * the browser removes the MCP layer's fixed 30s call cap (challenge pages
+ * camofox-browser is a Docker image of camoufox exposing this REST API
+ * (`/tabs`, `/sessions/...`, `/evaluate`) natively; talking to it straight
+ * keeps challenge pages alive across arbitrary timeouts instead of dying on
  * can load longer and the browser keeps rendering) and its session-state
  * false negatives. Requires the SiYuan container to share a docker network
  * with camofox-browser; all calls are forwarded through the SiYuan kernel
@@ -165,10 +164,25 @@ export class CamoufoxClient {
         if (!tabId) {
             throw new Error('camoufox blank tab returned no tabId');
         }
-        await this.requestJson(`/tabs/${encodeURIComponent(tabId)}/navigate`, {
-            method: 'POST',
-            body: JSON.stringify({ url, userId: this.config.userId }),
-        });
+        // Navigate occasionally answers 500 while the browser session is
+        // still coming back from an idle disconnect - retry before giving up.
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                await this.requestJson(`/tabs/${encodeURIComponent(tabId)}/navigate`, {
+                    method: 'POST',
+                    body: JSON.stringify({ url, userId: this.config.userId }),
+                });
+                lastErr = null;
+                break;
+            } catch (err) {
+                lastErr = err;
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+        }
+        if (lastErr) {
+            throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+        }
         return tabId;
     }
 

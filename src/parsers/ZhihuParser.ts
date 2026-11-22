@@ -24,7 +24,7 @@ interface ZhihuPageValues {
  * Zhihu answers are behind the zse-ck anti-scraping wall: direct page fetches
  * return HTTP 403, the v4 API requires login, and anonymous reader proxies
  * are unreachable from the user's network. Rendering therefore goes through
- * the user's self-hosted camoufox MCP server (global setting), which drives
+ * the user's self-hosted camofox-browser REST service (global setting), which drives
  * a real browser past the JS challenge.
  *
  * When the camoufox service is disabled, test() returns false and Zhihu URLs

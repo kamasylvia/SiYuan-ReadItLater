@@ -147,9 +147,9 @@ Uploaded links are deduplicated: the source URL → link mapping is persisted in
 
 ### Camoufox browser service
 
-Some pages (currently Zhihu) can only be rendered by a real browser. The plugin cannot ship a browser, so it delegates those renders to a self-hosted [camofox-mcp](https://github.com/redf0x1/camofox-mcp) server over HTTP. Deploy the server first, then enable **Use camoufox browser service** in General settings and fill in:
+Some pages (currently Zhihu) can only be rendered by a real browser. The plugin cannot ship a browser, so it delegates those renders to a self-hosted [camofox-browser](https://github.com/redf0x1/camofox-browser) service (a Docker image of camoufox, over REST). Deploy the server first, then enable **Use camoufox browser service** in General settings and fill in:
 
-- **Camoufox MCP server URL** — base URL of your server, e.g. `http://192.168.1.10:3000` (the plugin appends `/mcp`). It must be reachable from the SiYuan kernel network when the frontend cannot reach it directly (the plugin retries through the kernel forward proxy).
+- **Camoufox browser service URL** — REST API base, default port 9377. Same docker network: `http://camofox-browser:9377`; from the host: the mapped port (e.g. `http://192.168.1.10:9377`). Do not append `/mcp`. It must be reachable from the SiYuan kernel network when the frontend cannot reach it directly (the plugin retries through the kernel forward proxy).
 - **Camoufox API token** — Bearer token if your server requires auth; empty for open servers.
 - **Render wait (seconds)** — how long to wait for page content before extracting.
 
@@ -207,7 +207,7 @@ Saves video description and embeds the player.
 
 ### Zhihu
 
-Saves Zhihu answers (`zhihu.com/question/<id>/answer/<id>`) and column articles (`zhihu.com/p/<id>`) as markdown, with images downloaded to assets. Zhihu sits behind a JS anti-scraping challenge that blocks anonymous fetching, so rendering is delegated to a self-hosted [camofox-mcp](https://github.com/redf0x1/camofox-mcp) browser service (see below). Each clip opens a throwaway browser tab and takes ~20-30 seconds.
+Saves Zhihu answers (`zhihu.com/question/<id>/answer/<id>`) and column articles (`zhihu.com/p/<id>`) as markdown, with images downloaded to assets. Zhihu sits behind a JS anti-scraping challenge that blocks anonymous fetching, so rendering is delegated to a self-hosted [camofox-browser](https://github.com/redf0x1/camofox-browser) browser service (see below). Each clip opens a throwaway browser tab and takes ~20-30 seconds.
 
 ### Text Snippet
 

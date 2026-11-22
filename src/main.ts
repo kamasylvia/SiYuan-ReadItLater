@@ -387,7 +387,7 @@ export default class ReadItLaterPlugin extends Plugin {
         showMessage(result.message, result.ok ? 5000 : 10000, result.ok ? 'info' : 'error');
     }
 
-    /** Probes the camoufox MCP server (server_status) and shows the localized result. */
+    /** Probes the camofox-browser REST API (/health) and shows the localized result. */
     async checkCamoufoxConnection(): Promise<void> {
         const t = (key: string): string => String(this.i18n[key] ?? key);
         if (!String(this.settings.camoufoxApiUrl ?? '').trim()) {

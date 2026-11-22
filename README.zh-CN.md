@@ -100,9 +100,9 @@ ReadItLater 不只是把网页转成 Markdown。每种内容类型都有专属�
 
 ### Camoufox 浏览器服务
 
-部分页面（目前是知乎）只能由真实浏览器渲染。插件装不下浏览器，因此把这类渲染委托给自建的 [camofox-mcp](https://github.com/redf0x1/camofox-mcp) 服务（HTTP 调用）。先部署服务端，再在通用设置中开启 **使用 camoufox 浏览器服务** 并填写：
+部分页面（目前是知乎）只能由真实浏览器渲染。插件装不下浏览器，因此把这类渲染委托给自建的 [camofox-browser](https://github.com/redf0x1/camofox-browser) 服务（camoufox 的 Docker 镜像，REST 调用）。先部署服务端，再在通用设置中开启 **使用 camoufox 浏览器服务** 并填写：
 
-- **Camoufox MCP 服务地址**——服务端基地址，例如 `http://192.168.1.10:3000`（插件自动拼接 `/mcp`）。当前端直连不可达时插件会经内核 forward proxy 中转，因此该地址最好在思源内核网络内也可达。
+- **Camoufox 浏览器服务地址**——REST API 基址，默认端口 9377。同一 docker 网络填 `http://camofox-browser:9377`；宿主机填映射端口（如 `http://192.168.1.10:9377`）。不要拼接 `/mcp`。当前端直连不可达时插件会经内核 forward proxy 中转，因此该地址最好在思源内核网络内也可达。
 - **Camoufox API 令牌**——服务端开启鉴权时填写 Bearer 令牌；无鉴权留空。
 - **渲染等待（秒）**——提取正文前等待页面加载的时长。
 
@@ -158,7 +158,7 @@ ReadItLater 不只是把网页转成 Markdown。每种内容类型都有专属�
 
 ### 知乎
 
-保存知乎回答（`zhihu.com/question/<id>/answer/<id>`）与专栏文章（`zhihu.com/p/<id>`）为 Markdown，图片下载到资源目录。知乎有 JS 反爬质询，匿名抓取会被拦截，因此渲染委托给自建的 [camofox-mcp](https://github.com/redf0x1/camofox-mcp) 浏览器服务（见下）。每次剪藏会开一个一次性浏览器页签，约 20-30 秒。
+保存知乎回答（`zhihu.com/question/<id>/answer/<id>`）与专栏文章（`zhihu.com/p/<id>`）为 Markdown，图片下载到资源目录。知乎有 JS 反爬质询，匿名抓取会被拦截，因此渲染委托给自建的 [camofox-browser](https://github.com/redf0x1/camofox-browser) 浏览器服务（见下）。每次剪藏会开一个一次性浏览器页签，约 20-30 秒。
 
 ### 文本片段
 
