@@ -354,11 +354,18 @@ export default class ReadItLaterPlugin extends Plugin {
         let pasted = '';
         area.addEventListener('paste', (event) => {
             const clipboardData = (event as ClipboardEvent).clipboardData;
-            if (clipboardData) {
-                pasted = clipboardData.getData('text/plain');
-                event.preventDefault();
-                area.value = pasted;
-            }
+            const text = clipboardData?.getData('text/plain');
+            if (!text) return;
+            // Insert at the caret instead of replacing the whole value: the
+            // dialog advertises multi-URL batches, and a wholesale replace
+            // used to wipe everything already typed (first line gone the
+            // moment the second URL was pasted).
+            event.preventDefault();
+            const start = area.selectionStart ?? area.value.length;
+            const end = area.selectionEnd ?? start;
+            area.setRangeText(text, start, end, 'end');
+            area.focus();
+            pasted = area.value;
         });
 
         const clip = (): void => {
