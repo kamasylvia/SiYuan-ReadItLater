@@ -113,9 +113,17 @@
     "camoufoxCheckOk": "Camoufox server reachable.",
     "settingsZhihuRequiresCamoufox": "Requires the camoufox browser service above (Zhihu blocks anonymous fetching).",
     "zhihuCamoufoxDisabled": "Zhihu clipping needs the camoufox browser service. Enable it in General settings.",
-    "clippingInProgress": "Clipping, please wait...",
+    "clippingInProgress": "Clipping...",
     "delimiterName_newLine": "newlines",
     "delimiterName_comma": "commas",
     "delimiterName_period": "periods",
-    "delimiterName_semicolon": "semicolons"
+    "delimiterName_semicolon": "semicolons",
+    "clippingProgressPattern": "Clipping - {percent}%: {stage}",
+    "clippingStageConnecting": "Starting browser session...",
+    "clippingStageRendering": "Rendering page...",
+    "clippingStageExtracting": "Extracting content...",
+    "settingsCamoufoxVirtual": "Use a virtual display (Xvfb)",
+    "settingsCamoufoxVirtualDesc": "Render on a virtual display instead of headless. Anti-scraping walls fingerprint headless sessions and block UGC pages for them; keep this on unless debugging.",
+    "settingsZhihuCookie": "Zhihu cookie (optional)",
+    "settingsZhihuCookieDesc": "Paste your logged-in Zhihu Cookie header value. Gated articles (some UGC posts) need a logged-in session even through the browser render; leave empty and non-gated articles still clip."
 }

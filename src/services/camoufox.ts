@@ -181,10 +181,8 @@ export class CamoufoxClient {
         const deadline = Date.now() + this.config.waitSeconds * 1000;
         const ready = `(() => { const el = document.querySelector(${JSON.stringify(selector)}); return !!el && el.textContent.trim().length > 0; })()`;
         while (Date.now() < deadline) {
-            const r = (await this.evaluateJs(tabId, ready).catch(() => null)) as
-                | { result?: unknown }
-                | null;
-            if (r?.result === true) return;
+            const r = (await this.evaluateJs(tabId, ready).catch(() => null)) as unknown;
+            if (r === true) return;
             await new Promise((resolve) => setTimeout(resolve, 1000));
         }
         throw new Error(`camoufox wait: selector not found within budget: ${selector}`);
@@ -194,15 +192,19 @@ export class CamoufoxClient {
         const expr = selector
             ? `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) throw new Error("Element not found: " + ${JSON.stringify(selector)}); return el.innerHTML; })()`
             : 'document.documentElement.outerHTML';
-        const r = await this.evaluateJs(tabId, expr);
-        if (typeof r.result !== 'string') {
+        const html = await this.evaluateJs(tabId, expr);
+        if (typeof html !== 'string') {
             throw new Error('camoufox html extraction returned no html');
         }
-        return r.result;
+        return html;
     }
 
-    private async evaluateJs(tabId: string, expression: string): Promise<{ result?: unknown }> {
-        return (await this.evaluate(tabId, expression)) as { result?: unknown };
+    private async evaluateJs(tabId: string, expression: string): Promise<unknown> {
+        // Return the evaluated VALUE, not the response envelope: callers
+        // consume it directly (a stray envelope here made every title
+        // expression silently read as empty).
+        const r = (await this.evaluate(tabId, expression)) as { result?: unknown };
+        return r.result;
     }
 
     private async evaluate(tabId: string, expression: string): Promise<BrowserResponse> {
