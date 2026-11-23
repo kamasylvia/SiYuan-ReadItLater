@@ -79,3 +79,14 @@ Loops: `{% for item in array %}...{% endfor %}`
 - Target: ES2022, ESNext modules; esbuild target es2018, CJS output
 - `siyuan` is the only external module (types from the `siyuan` npm package)
 - UI text comes from `i18n.json` (`en_US` + `zh_CN`); DOM built with SiYuan b3-* CSS classes
+
+## Project ledger and memory: GitHub issues
+
+The single source of truth for this repository's memory, progress, plans and lessons is **this repository's GitHub issues** — not local TODO/LESSONS ledger files, not agent-private memory.
+
+- Issues are written in English, one topic per issue. Anything plan-like follows the Goal / Status / Acceptance / References structure.
+- Open a work issue (goal + sketch + acceptance) **before** implementing it. When the design evolves, edit the issue body to match the latest design and mark superseded drafts as such — no stale bodies.
+- Lessons are posted as comments on the owning issue, distilled and with measured numbers — never raw logs.
+- Reference commits with `Fixes #N` / `Closes #N` (auto-closes on master) or `Refs #N` (links without closing).
+- Agents drive `gh -R kamasylvia/SiYuan-ReadItLater` themselves (open/edit/close/track) as part of the normal dev loop; this does not need per-action user approval.
+- #20 (Development ledger, pinned) is the curated index, not a full-text dump. Roll it at the end of every pass: move finished work out, link new lessons in.
